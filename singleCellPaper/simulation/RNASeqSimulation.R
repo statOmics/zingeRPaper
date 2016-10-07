@@ -19,6 +19,7 @@ dataNoZI <- NBsim(foldDiff = fcSim, ind=DEind, dataset = pickrell, nTags = nTags
 selectedMethods <- c("edgeR_robust", "limma_voom","edgeR", "edgeREMLibSizeOldF", "DESeq2")
 pvalsNoZI <- pval(dataNoZI, method=selectedMethods, count.type="counts", mc.cores=2, niter=25)
 #### performance curves using iCOBRA
+#rnaSeqPerformanceNoZeroes.pdf
 library(iCOBRA)
 truthNoZI=data.frame(status=rep(0,nTags), row.names=rownames(dataNoZI))
 truthNoZI[dataNoZI$indDE,"status"]=1
@@ -40,6 +41,7 @@ dataZeroes$counts = dataZeroes$counts*zeroId
 genesWithAddedZero <- which(rowSums(zeroId)<nSamp)
 pvalsZeroes = pval(dataZeroes, method=selectedMethods, count.type="counts", mc.cores=2, niter=25)
 ##performance curves
+#rnaSeqPerformanceWithZeroes.pdf
 truthZero=data.frame(status=rep(0,nTags), row.names=rownames(dataZeroes))
 truthZero[dataZeroes$indDE,"status"]=1
 cobraZero <- COBRAData(pval =data.frame(edgeRRobust=pvalsZeroes$pval$edgeR_robust, limma_voom=pvalsZeroes$pval$limma_voom, edgeR=pvalsZeroes$pval$edgeR, edgeREMLibSize=pvalsZeroes$pval$edgeREMLibSize, DESeq2=pvalsZeroes$pval$DESeq2, row.names = rownames(dataZeroes)), 

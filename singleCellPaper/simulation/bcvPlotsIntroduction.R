@@ -31,11 +31,14 @@ plotBCV(dIslam)
 
 ## BCV plot trapnell
 library(MultiAssayExperiment)
-dataTrapnell <- readRDS("/Users/koenvandenberge/PhD_Data/singleCell/conquer/GSE52529-GPL11154.rds")
+dataTrapnell <- readRDS("/Users/koenvandenberge/PhD_Data/singleCell/conquer/GSE52529-GPL11154.rds") #downloaded from conquer tool from Charlotte Soneson
+#remove wells containing debris
+dataTrapnell <- dataTrapnell[,!pData(dataTrapnell)[,"characteristics_ch1.2"]=="debris: TRUE"]
+#remove wells that did not contain one cell
+dataTrapnell <- dataTrapnell[,!pData(dataTrapnell)[,"characteristics_ch1.4"]!="cells in well: 1"]
 countsTrapnell <- round(assay(experiments(dataTrapnell)$gene,"count"))
 countsTrapnell <- countsTrapnell[!rowSums(countsTrapnell)==0,]
-condition = factor(as.numeric(pData(dataTrapnell)[,"characteristics_ch1.2"]))
-design = model.matrix(~condition)
+design=matrix(rep(1,ncol(countsTrapnell),ncol=1)) #only estimate intercept
 dEmp=DGEList(countsTrapnell)
 dEmp=calcNormFactors(dEmp)
 dEmp=estimateGLMCommonDisp(dEmp,design, interval=c(0,10))
@@ -43,10 +46,67 @@ dEmp=estimateGLMTagwiseDisp(dEmp,design, prior.df=0)
 plotBCV(dEmp)
 
 
-### simulate RNA-Seq data with high number of samples
-
-
+### simulate RNA-Seq data with high number of samples and plot BCV
+library(tweeDEseqCountData)
+data(pickrell)
+pickrell <- as.matrix(exprs(pickrell.eset))
+nSamp <- 20
+grp <- as.factor(rep(0:1, each = nSamp/2))
+nTags = 20e3
+libSize = round(runif(nSamp,25e5,5e6))
+dataNoZI <- NBsim(foldDiff = 1, ind=1, dataset = pickrell, nTags = nTags, group = grp, verbose = TRUE, add.outlier = FALSE, drop.extreme.dispersion = 0.1, lib.size=libSize, drop.low.lambda=TRUE)
+dSim=DGEList(dataNoZI$counts)
+dSim=calcNormFactors(dSim)
+design=model.matrix(~grp)
+dSim=estimateGLMCommonDisp(dSim,design,interval=c(0,10))
+dSim=estimateGLMTagwiseDisp(dSim,design,prior.df=0)
+plotBCV(dSim)
 
 ## add zeroes and plot BCV
+dataZeroes = dataNoZI
+propZeroes=0.5
+zeroId = matrix(1,nrow=nrow(dataNoZI),ncol=ncol(dataNoZI))
+zeroId[sample(1:length(zeroId),floor(length(zeroId)*propZeroes))]=0
+dataZeroes$counts = dataZeroes$counts*zeroId
+genesWithAddedZero <- which(rowSums(zeroId)<nSamp)
+dZero=DGEList(dataZeroes$counts)
+dZero=calcNormFactors(dZero)
+dZero=estimateGLMCommonDisp(dZero,design,interval=c(0,10))
+dZero=estimateGLMTagwiseDisp(dZero,design,prior.df=0)
+plotBCV(dZero)
+
+## add zeroes according to library size
+## suppose minimum library size has 60% zeroes and maximum has 10%. Interpolate linearly between these two.
+slope <- (max(colSums(dataNoZI$counts))-min(colSums(dataNoZI$counts)))/50
+pZero <- (10+(colSums(dataNoZI$counts)-min(colSums(dataNoZI$counts)))/slope)/100
+dataZeroes = dataNoZI
+for(i in 1:length(pZero)) dataZeroes$counts[sample(1:nrow(dataZeroes$counts),nrow(dataZeroes$counts)*pZero[i]),i] = 0
+dZero=DGEList(dataZeroes$counts)
+dZero=calcNormFactors(dZero)
+dZero=estimateGLMCommonDisp(dZero,design,interval=c(0,10))
+dZero=estimateGLMTagwiseDisp(dZero,design,prior.df=0)
+plotBCV(dZero)
+
 
 ## plot BCV after zeroWeights
+dSimZero <- DGEList(dataZeroes$counts)
+dSimZero <- calcNormFactors(dSimZero)
+zeroWeights <- zeroWeightsLibSize(counts=dSimZero$counts, design=design, niter=30, initialWeightAt0=TRUE, plotW=TRUE)
+dSimZero$weights <- zeroWeights
+dSimZero <- estimateGLMCommonDisp(dSimZero,design,interval=c(0,10))
+dSimZero <- estimateGLMTagwiseDisp(dSimZero,design,prior.df=0)
+plotBCV(dSimZero)
+
+
+## plot for in paper
+#bcvPlotsIntro.pdf
+par(mfrow=c(2,2), mar=c(5,4,1,1))
+plotBCV(dEmp)
+plotBCV(dSim)
+
+plotBCV(dZero)
+plotBCV(dSimZero)
+
+
+
+
