@@ -50,21 +50,22 @@ plotBCV(dEmp)
 library(tweeDEseqCountData)
 data(pickrell)
 pickrell <- as.matrix(exprs(pickrell.eset))
-nSamp <- 20
+nSamp <- 10
 grp <- as.factor(rep(0:1, each = nSamp/2))
 nTags = 20e3
-libSize = round(runif(nSamp,25e5,5e6))
+design=model.matrix(~grp)
+#libSize = sample(round(seq(25e5,5e6,length.out=nSamp)))
+libSize <- runif(n=nSamp, 5e6,8e6)
 dataNoZI <- NBsim(foldDiff = 1, ind=1, dataset = pickrell, nTags = nTags, group = grp, verbose = TRUE, add.outlier = FALSE, drop.extreme.dispersion = 0.1, lib.size=libSize, drop.low.lambda=TRUE)
 dSim=DGEList(dataNoZI$counts)
 dSim=calcNormFactors(dSim)
-design=model.matrix(~grp)
 dSim=estimateGLMCommonDisp(dSim,design,interval=c(0,10))
 dSim=estimateGLMTagwiseDisp(dSim,design,prior.df=0)
 plotBCV(dSim)
 
 ## add zeroes and plot BCV
 dataZeroes = dataNoZI
-propZeroes=0.5
+propZeroes=0.1
 zeroId = matrix(1,nrow=nrow(dataNoZI),ncol=ncol(dataNoZI))
 zeroId[sample(1:length(zeroId),floor(length(zeroId)*propZeroes))]=0
 dataZeroes$counts = dataZeroes$counts*zeroId
@@ -74,19 +75,6 @@ dZero=calcNormFactors(dZero)
 dZero=estimateGLMCommonDisp(dZero,design,interval=c(0,10))
 dZero=estimateGLMTagwiseDisp(dZero,design,prior.df=0)
 plotBCV(dZero)
-
-## add zeroes according to library size
-## suppose minimum library size has 60% zeroes and maximum has 10%. Interpolate linearly between these two.
-slope <- (max(colSums(dataNoZI$counts))-min(colSums(dataNoZI$counts)))/50
-pZero <- (10+(colSums(dataNoZI$counts)-min(colSums(dataNoZI$counts)))/slope)/100
-dataZeroes = dataNoZI
-for(i in 1:length(pZero)) dataZeroes$counts[sample(1:nrow(dataZeroes$counts),nrow(dataZeroes$counts)*pZero[i]),i] = 0
-dZero=DGEList(dataZeroes$counts)
-dZero=calcNormFactors(dZero)
-dZero=estimateGLMCommonDisp(dZero,design,interval=c(0,10))
-dZero=estimateGLMTagwiseDisp(dZero,design,prior.df=0)
-plotBCV(dZero)
-
 
 ## plot BCV after zeroWeights
 dSimZero <- DGEList(dataZeroes$counts)
@@ -102,11 +90,16 @@ plotBCV(dSimZero)
 #bcvPlotsIntro.pdf
 par(mfrow=c(2,2), mar=c(5,4,1,1))
 plotBCV(dEmp)
-plotBCV(dSim)
+plotBCV(dSim, ylim=c(0,2.5))
 
 plotBCV(dZero)
-plotBCV(dSimZero)
+plotBCV(dSimZero,ylim=c(0,2.5))
 
+
+##### sample comparison smooth scatter plots
+par(mfrow=c(1,2),mar=c(5,5,3,1))
+smoothScatter(x=log10(islam[,1]),y=log10(islam[,2]),xlab="log10 counts", ylab="log10 counts", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
+smoothScatter(x=log10(pickrell[,1]),y=log10(pickrell[,2]),xlab="log10 counts", ylab="log10 counts", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
 
 
 

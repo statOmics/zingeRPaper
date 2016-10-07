@@ -1352,9 +1352,8 @@ getDataset <- function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda = 
 	    d <- d[rowSums(cp>1) >= 2, ]
 	}
 	d$AveLogCPM <- log2(rowMeans(cpm(d, prior.count = 1e-5)))
-	d$AveLogCPM[is.infinite(d$AveLogCPM)] = -1e3 #added by Koen. Else we get error for Bottomly
 	d <- estimateGLMCommonDisp(d)
-	d <- estimateGLMTrendedDisp(d) #this gave error for Bottomly
+	d <- estimateGLMTrendedDisp(d)
 	d <- estimateGLMTagwiseDisp(d)
 	dispersion <- d$tagwise.dispersion
 	AveLogCPM <- d$AveLogCPM

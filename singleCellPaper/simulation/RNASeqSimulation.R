@@ -34,7 +34,7 @@ plot_roc(cobraplot,xaxisrange=c(0,0.1), yaxisrange=c(0,.9))
 
 # add zeroes: here we see an obvious gain
 dataZeroes = dataNoZI
-propZeroes=0.05
+propZeroes=0.1
 zeroId = matrix(1,nrow=nrow(dataNoZI),ncol=ncol(dataNoZI))
 zeroId[sample(1:length(zeroId),floor(length(zeroId)*propZeroes))]=0
 dataZeroes$counts = dataZeroes$counts*zeroId
