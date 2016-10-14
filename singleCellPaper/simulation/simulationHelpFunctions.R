@@ -17,44 +17,8 @@ library(mgcv)
 library(gamlss)
 library(gamlss.tr)
 
-returnshapeParamKvdb <- function(nDE, min, max, mean, p95)
-  {
-    # nDE = number of DE features to simulate FC for    
-    # min = minimum logFC for DE genes to be biologically relevant
-    # max = maximum logFC for DE genes that we want to model
-    # mean= mean logFC for DE genes
-    # p95 = 95% quantile of logFC of DE genes
-    
-    # Let gamma denote ratio between alpha and beta (derived from expression
-    #         for mean of beta distribution)
-    gamma <- (max-mean)/(mean-min)
-    
-    # Solve alpha so as to ensure that 95% quantile of logFC is p95
-    targetfunction <- function(x)
-    {
-      pbeta((p95-min)/(max-min),x,gamma*x)-0.95
-    }
-    alpha <- uniroot(targetfunction,c(0,10^6))$root
-    
-    # Calculate beta
-    beta <- alpha * gamma
-    
-    # Generate logFCs according to beta distribution
-    x <- rbeta(nDE,alpha,beta)
-    # Transform to original scale
-    y <- min+(max-min)*x
-    
-    # Express as foldDifference (exponentiate)
-    foldSeq <- 2^y
-    
-    return(foldSeq)
-  }
-
-
-
 gen.trun(par=0, family="NBI", name="ZeroTruncated", type="left", varying=FALSE)
 getParamsZTNB <- function(counts, offset) {  
-## this function generates zero truncated NB parameters from real dataset ##
     require(MASS)
     libSize=offset
     if(all(counts==0)) stop("Error: all zeroes")
@@ -82,15 +46,12 @@ getDatasetNB = function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda =
 	d <- DGEList(counts)
 	cp <- cpm(d,normalized.lib.sizes=TRUE)
 	if(drop.low.lambda){
-	    # d <- d[rowSums(cp>1) >= 2, ]
-	    #dFiltered <- d[rowSums(cp>1) >= floor(ncol(d)/8),] #added by Koen VdB: expression in at least 1 in 8 samples
 	    d <- d[rowSums(cp>1) >= floor(ncol(d)/8),] #added by Koen VdB: expression in at least 1 in 8 samples
 	}
 	dFiltered=d
 	dFiltered <- edgeR::calcNormFactors(dFiltered)	
         dFiltered$AveLogCPM <- log2(rowMeans(cpm(dFiltered,lib.size=colSums(dFiltered$counts),normalized.lib.sizes=TRUE)+1))	
 	
-	## non-normalised library size as input results in closer resemblance of simulated vs empirical library sizes.
 	params=t(apply(dFiltered$counts,1,function(x) getParamsZTNB(counts=x,offset=d$samples$lib.size)))
 	## some genes could not be fitted with the ZINB model. We will reparametrize these with the median values
 	rmRows = which(params[,3]>1) #instability in ZTNB model estimation
@@ -98,7 +59,7 @@ getDatasetNB = function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda =
 	medianRows = c(rmRows,naRows)
 	if(length(medianRows) > 0) params[medianRows,] = cbind(rep(median(params[,1],na.rm=TRUE),length(medianRows)), rep(median(params[,2],na.rm=TRUE),length(medianRows)),rep(median(params[,3],na.rm=TRUE),length(medianRows)))
 	nonZeroDispId=params[,2]>0
-	params=params[nonZeroDispId,] #throw away zero dispersion estimates
+	params=params[nonZeroDispId,] #avoid zero dispersion estimates
 	dFiltered$AveLogCPM = dFiltered$AveLogCPM[nonZeroDispId]
 	
 	### get logistic regression model P(zero) ~ s(aveLogCPM) + logLibSize
@@ -130,9 +91,7 @@ getDatasetNB = function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda =
 	    }))
 	expectCounts=cbind(c(nullCounts),c(nonNullCounts))
 	zeroFit=gam(expectCounts~s(midsHlp)+logLibHlp,family="binomial")
-	
-	
-	
+		
 	###
 	params=data.frame(mu=params[,1],dispersion=params[,2], lambda=params[,3], aveLogCpm=dFiltered$AveLogCPM)
 	dispersion <- params$dispersion
@@ -159,11 +118,7 @@ getDatasetNB = function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda =
 	list(dataset.AveLogCPM = dataset.AveLogCPM, dataset.dispersion = dataset.dispersion, dataset.lib.size = dataset.lib.size, dataset.nTags = dataset.nTags, dataset.propZeroFit=zeroFit, dataset.lambda=lambda, dataset.propZeroGene=propZeroGene, dataset.breaks = breaks)
 }
 
-setClass("FoldList", representation("list"))
-setIs("FoldList", "LargeDataObject")
-## FoldList is similar to DGEList ##
-
-NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = NA, lib.size = NULL, drop.low.lambda = TRUE, drop.extreme.dispersion = 0.1,  add.outlier = FALSE, outlierMech = c("S", "R", "M"), pOutlier = 0.1, min.factor = 1.5, max.factor = 10, pDiff=.1, pUp=.5, foldDiff=3, name = NULL, save.file = FALSE, file = NULL, only.add.outlier = FALSE, verbose=TRUE, ind=NULL, params=NULL, noise=TRUE)
+NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = NA, lib.size = NULL, drop.low.lambda = TRUE, drop.extreme.dispersion = 0.1,  add.outlier = FALSE, outlierMech = c("S", "R", "M"), pOutlier = 0.1, min.factor = 1.5, max.factor = 10, pDiff=.1, pUp=.5, foldDiff=3, name = NULL, save.file = FALSE, file = NULL, only.add.outlier = FALSE, verbose=TRUE, ind=NULL, params=NULL, noise=TRUE, randomZero=0.025)
 {
 ## NBsim generates simulated counts from real dataset according to the NB model ##		
 	require(edgeR)
@@ -251,9 +206,10 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		} else if(noise==TRUE){
 		    zeroProbMat = matrix(predict(zeroFit, newdata=data.frame(logLibHlp=libPredict, midsHlp=cpmPredict), type="link"), byrow=FALSE, ncol=nlibs)
 		    expit=function(x) exp(x)/(1+exp(x))
-		    noise=rnorm(n=nrow(zeroProbMat),sd=1)
-		    noiseCol=rnorm(n=ncol(zeroProbMat))
-		    zeroProbMat = expit(sweep(zeroProbMat+noise,2,FUN="+",STATS=noiseCol))
+		    #noise=rnorm(n=nrow(zeroProbMat),sd=1)
+		    noiseCol=rnorm(n=ncol(zeroProbMat),sd=.2)
+		    #zeroProbMat = expit(sweep(zeroProbMat+noise,2,FUN="+",STATS=noiseCol))
+		    zeroProbMat = expit(sweep(zeroProbMat,2,FUN="+",STATS=noiseCol))
 		}
 		## adjust lib size for adding zeroes by calculating expected loss
 		avCount=sweep(Lambda,2,lib.size,"*")
@@ -264,6 +220,9 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		mu=sweep(Lambda,2,libSizeCountSim,"*")
 		mu[mu<1e-16] = 0.5
 		counts = rZANBI(n=nTags*nlibs, mu=mu, sigma=Dispersion, nu=zeroProbMat)
+
+		## introduce random zeroes
+		counts[sample(1:length(counts), floor(randomZero*length(counts)))]=0
 
 		## the rZANBI function rarely simulates Inf values for very low mu estimates. Resimulate for these genes using same params, if present		
 		## also, resample features with all zero counts
@@ -375,8 +334,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		    dat$lib.size <- sample(dataset$dataset.lib.size, nlibs, replace=TRUE)}
 
 
-	    if(is.null(nTags))
-	      dat$nTags <- dat$dataset$dataset.nTags 
+	    if(is.null(nTags)) dat$nTags <- dat$dataset$dataset.nTags 
         if(verbose) message("Sampling.\n")	
 	      dat <- sample.fun(dat)
         if(verbose) message("Calculating differential expression.\n")	
@@ -585,7 +543,7 @@ function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
 	d <- DGEList(counts = counts, group = group )
 	d <- edgeR::calcNormFactors(d)
  	design = model.matrix(~group)
-	d <- estimateGLMCommonDisp(d,design=design, interval=c(0,10)) ####### INTERVAL ADDED BY KOEN
+	d <- estimateGLMCommonDisp(d,design=design, interval=c(0,10))
 	d <- estimateGLMTrendedDisp(d,design=design)
 	d <- estimateGLMTagwiseDisp(d, design = design, prior.df = prior.df)
 	f <- glmFit(d, design = design)
@@ -596,6 +554,32 @@ function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
 	out[is.na(out)]=1
 	return(out)
 }
+
+
+
+edgeRWeightedOldF.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL, weights=matrix(1,nrow=nrow(counts),ncol=ncol(counts)))
+{
+    ## edgeR standard pipeline ##
+	library(edgeR)
+	d <- DGEList(counts = counts, group = group )
+	d <- edgeR::calcNormFactors(d)
+ 	design = model.matrix(~group)
+	d$weights <- weights
+	d <- estimateGLMCommonDisp(d,design=design, interval=c(0,10))
+	d <- estimateGLMTrendedDisp(d,design=design)
+	d <- estimateGLMTagwiseDisp(d, design = design, prior.df = prior.df)
+	edger.fit <- glmFit(d, design) #uses weights
+	edger.fit$df.residual <- rowSums(edger.fit$weights)-ncol(design)
+  	lr <- glmLRTOld(edger.fit,coef=2,test="F")
+	pval = lr$table$PValue
+	padj = p.adjust(pval, "BH")
+	out = cbind(pval = pval, padj = padj)
+	out[is.na(out)]=1
+	return(out)
+}
+
+
 
 edgeREstDisp.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
@@ -1102,6 +1086,85 @@ zeroWeightsLibSize <- function(counts, design, initialWeightAt0=TRUE, niter=30, 
     return(w)
 }
 
+zeroWeightsLibSizeFast <- function(counts, design, initialWeightAt0=TRUE, maxit=100, plot=FALSE, plotW=FALSE, designZI=NULL, wTol=1e-4){
+    require(edgeR)
+    counts <- DGEList(counts)
+    counts <- calcNormFactors(counts)
+    effLibSize <- counts$samples$lib.size*counts$samples$norm.factors
+    logEffLibSize <- log(effLibSize)
+    zeroId <- counts$counts==0
+    w <- matrix(1,nrow=nrow(counts),ncol=ncol(counts), dimnames=list(c(1:nrow(counts)), NULL))
+    #if(initialWeightAt0) w[zeroId] <- 0.1 else w[zeroId] <- 0.9
+      ## starting values based on P(zero) in the library
+    for(k in 1:ncol(w)) w[counts$counts[,k]==0,k] <- 1-mean(counts$counts[,k]==0)
+    
+    wFinal <- matrix(NA,nrow=nrow(counts),ncol=ncol(counts))
+    active <- rowSums(counts$counts==0)>0 #work with genes with at least 1 zero
+    wFinal[!active,]=w[!active,]
+    counts <- counts[active,]
+    w <- w[active,]
+    llOld <- matrix(-1e4,nrow=nrow(counts),ncol=ncol(counts))
+    likCOld <- matrix(0,nrow=nrow(counts),ncol=ncol(counts))
+
+    for(i in 1:maxit){
+        zeroId <- counts$counts==0	
+	counts$weights <- w
+	
+	### M-step counts
+	counts <- estimateGLMCommonDisp(counts, design, interval=c(0,10))
+	counts <- estimateGLMTagwiseDisp(counts, design, prior.df=0, min.row.sum=1)
+	if(plot) plotBCV(counts)
+	fit <- glmFit(counts, design)
+	if(i>1) likCOld <- likC[!converged,]	
+	likC <- dnbinom(counts$counts, mu=fit$fitted.values, size=1/counts$tagwise.dispersion)
+	
+	### M-step mixture parameter: model zero probability
+	successes <- colSums(1-w) #P(zero)
+	failures <- colSums(w) #1-P(zero)
+	if(is.null(designZI)){
+	zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")} else{
+	zeroFit <- glm(cbind(successes,failures) ~-1+designZI, family="binomial")}
+	pi0Hat <- predict(zeroFit,type="response") 
+	
+	## E-step: Given estimated parameters, calculate expected value of weights
+	pi0HatMat <- expandAsMatrix(pi0Hat,dim=dim(counts),byrow=TRUE)
+	wOld <- w
+	w <- 1-pi0HatMat*zeroId/(pi0HatMat*zeroId+(1-pi0HatMat)*likC*zeroId+1e-15)
+	rownames(w) <- rownames(wOld)
+	if(plotW) hist(w[zeroId])
+
+	## expected complete data log-likelihood
+	if(i>1) llOld <- ll[!converged,]
+	ll <- w*log(pi0HatMat) + (1-w)*log(1-pi0HatMat) + (1-w)*log(likC)
+
+	## filter genes with converged weights
+	#converged <- rowSums( (likC-likCOld)/likC )<1e-3
+
+	   ## weights
+	#converged <- rowSums(abs(w-wOld)<wTol)==ncol(counts$counts)
+	  ## metagenomeSeq's stopping rule
+	#nll <- -rowSums(ll)
+	#nllOld <- -rowSums(llOld)
+	#epsilon <- (nllOld-nll)/nllOld
+	#converged <- epsilon<1e-4 #claims convergence way too fast.
+	converged=FALSE
+	if(any(converged)){
+	    wFinal[as.numeric(rownames(w)[converged]),] = w[converged,]
+	    w <- matrix(w[!converged,],ncol=ncol(counts), dimnames=list(c(rownames(w)[!converged]),NULL))
+	    counts <- counts[!converged,]
+	}
+	#cat(paste0("mean diff in L: ",round(mean(rowSums(exp(ll)-exp(llOld))),2),". active features: ",nrow(counts),"\n"))
+	#metagenomeSeq for example seems to report mean(ll) instead of difference.
+	if(all(converged)) break
+	if(i==maxit){
+	    wFinal[apply(wFinal,1,function(row) any(is.na(row))),] = w
+	    break
+	}
+    }
+    return(wFinal)
+}
+
+
 zeroWeightsLibSizeScran <- function(counts, design, initialWeightAt0=TRUE, niter=30, plot=FALSE, plotW=FALSE, designZI=NULL){
     require(edgeR) ; require(scran)
     counts <- DGEList(counts)
@@ -1235,6 +1298,29 @@ edgeREMLibSizeOldF.pfun=function(counts, group, design=NULL, mc.cores=2, niter=5
 	return(out)
 }
 
+edgeREMLibSizeFastOldF.pfun=function(counts, group, design=NULL, mc.cores=2, niter=50){
+	library(edgeR)
+	d <- DGEList(counts = counts, group = group )
+	d <- edgeR::calcNormFactors(d)
+        design = model.matrix(~ group)
+	#not adding a design matrix models the zeroes with the library size automatically
+	zeroWeights = zeroWeightsLibSizeFast(d, design, plot=FALSE, maxit=niter, initialWeightAt0=TRUE, plotW=FALSE)
+	d$weights = zeroWeights
+	d=estimateDispWeighted(d,design,weights=zeroWeights, grid.range=c(-15,15))
+	#plotBCV(d)
+	edger.fit <- glmFit(d, design) #uses weights
+	edger.fit$df.residual <- rowSums(edger.fit$weights)-ncol(design)
+  	edger.lrt <- glmLRTOld(edger.fit,coef=2,test="F")
+  	pval <- edger.lrt$table$PValue
+  	pval[rowSums(counts) == 0] <- NA
+  	padj <- p.adjust(pval,method="BH")
+  	padj[is.na(padj)] <- 1
+	out=cbind(pval,padj)
+	out[is.na(out)] <- 1
+	return(out)
+}
+
+
 edgeREMLibSizeOldFScran.pfun=function(counts, group, design=NULL, mc.cores=2, niter=50){
 	library(edgeR) ; require(scran)
 	d <- DGEList(counts = counts, group = group )
@@ -1298,7 +1384,6 @@ scde.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     if(is.null(colnames(counts))) colnames(counts)=paste0("sample",1:ncol(counts))
     require(scde)
     
-    ### normalisation??
     # calculate error models
     o.ifm <- scde.error.models(counts = counts, groups = group, n.cores = mc.cores, threshold.segmentation = TRUE, save.crossfit.plots = FALSE, save.model.plots = FALSE, verbose = 1)
     # estimate gene expression prior
@@ -1315,10 +1400,8 @@ scde.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
 MAST.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     require(MAST)
     #convert to tpm
-    tpm <- counts*1e6/colSums(counts)
+    tpm <- counts*1e6/colSums(counts) #consider equal length across all features since we did not take length into account while simulating.
     sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=group))
-    #tt <- thresholdSCRNACountMatrix(tpm, nbins = 20, min_per_bin = 30)
-    #keep <- colMeans(exprs(sca) > 0) > 0.1
     ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
     CD <- cData(sca)
     CD$ngeneson <- ngeneson

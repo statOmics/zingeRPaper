@@ -46,6 +46,121 @@ dEmp=estimateGLMTagwiseDisp(dEmp,design, prior.df=0)
 plotBCV(dEmp)
 
 
+
+### bottomly
+load("bottomly_eset.RData")
+strain=pData(bottomly.eset)$strain
+design=model.matrix(~strain)
+bottomly=exprs(bottomly.eset)
+dB=DGEList(bottomly)
+dB=calcNormFactors(dB)
+dBOrig=estimateGLMTagwiseDisp(estimateGLMCommonDisp(dB,design,interval=c(0,10)),design,prior.df=0)
+plotBCV(dBOrig)
+
+addZero <- function(idVector,p,nGenes){
+    samp <- sample(idVector,floor(p*nGenes))
+    idVector2 <- idVector[!idVector%in%samp]
+    return(list(samp,idVector2))
+}
+pZeroTrapnell <- sapply(1:60, function(x) mean(rowSums(countsTrapnell>0)==x))
+a=aveLogCPM(dBOrig$counts,offset=getOffset(dBOrig))
+a=a-min(a)+0.1
+prob=a/sum(a)
+prob[a<4.5]=prob[a<4.5]*20
+id=sample(1:nrow(bottomly),7500,prob=prob)
+start=5
+end=10
+bottomly2=bottomly[id,]
+nGenes=nrow(bottomly2)
+nCol=ncol(bottomly2)
+idVector=1:nrow(bottomly2)
+for(i in start:end){
+    hlp <- addZero(idVector=idVector, p=pZeroTrapnell[i-start+1], nGenes=nGenes)
+    idVector=hlp[[2]]
+    bottomly2[hlp[[1]],sample(1:nCol,nCol-i)]=0
+}
+addedZeroId=!(bottomly2==bottomly[id,])
+bottomly[id,]=bottomly2
+dB=DGEList(bottomly)
+dB=calcNormFactors(dB)
+dB=estimateGLMTagwiseDisp(estimateGLMCommonDisp(dB,design,interval=c(0,10)),design,prior.df=0)
+plotBCV(dB, ylim=c(0,6))
+
+##downweighted
+dBW=dB
+w=matrix(1,nrow=nrow(dB),ncol=ncol(dB))
+wSub=w[id,]
+wSub[which(addedZeroId)]=0
+w[id,]=wSub
+dBW$weights=w
+keep=rowSums(dBW$counts)>0
+dBW=dBW[keep,]
+dBW=estimateGLMTagwiseDisp(estimateGLMCommonDisp(dBW,design,interval=c(0,10)),design,prior.df=0)
+plotBCV(dBW)
+
+#bcvPlotsIntro.pdf
+par(mfrow=c(2,2), mar=c(5,4,1,1))
+plotBCV(dEmp)
+plotBCV(dBOrig)
+
+plotBCV(dB, ylim=c(0,6))
+plotBCV(dBW)
+
+
+
+
+##### sample comparison smooth scatter plots
+par(mfrow=c(1,2),mar=c(5,5,3,1))
+smoothScatter(x=log10(islam[,1]),y=log10(islam[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
+smoothScatter(x=log10(pickrell[,1]),y=log10(pickrell[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
+
+#### P(zero) ~ libSize
+plot(x=log(colSums(islam)),y=colMeans(islam==0), bty="l", xlab="Log library size", ylab="Fraction of zeroes", pch=19, cex=.75)
+
+
+#### OLD CODE
+### Pickrell BCV plot
+library(tweeDEseqCountData)
+data(pickrell)
+pickrell <- as.matrix(exprs(pickrell.eset))
+gender=pData(pickrell.eset)$gender
+design=model.matrix(~gender)
+dPickrell <- DGEList(pickrell)
+dPickrell <- calcNormFactors(dPickrell)
+dPickrellOrig <- estimateGLMTagwiseDisp(estimateGLMCommonDisp(dPickrell,design,interval=c(0,10)),design,prior.df=0)
+plotBCV(dPickrellOrig)
+
+
+A=aveLogCPM(dPickrellOrig$counts, offset = getOffset(dPickrellOrig))
+d=sqrt(getDispersion(dPickrellOrig))
+plot(x=A,y=d, ylim=c(0,4), type="n" , xlab = "Average log CPM", ylab = "Biological coefficient of variation")
+points(A, d, pch = 16, cex = 0.2)
+
+### Pickrell BCV plot with augmented zero counts
+data(pickrell)
+pickrell <- as.matrix(exprs(pickrell.eset))
+addZero <- function(idVector,p,nGenes){
+    samp <- sample(idVector,floor(p*nGenes))
+    idVector2 <- idVector[!idVector%in%samp]
+    return(list(samp,idVector2))
+}
+pZeroTrapnell <- sapply(1:60, function(x) mean(rowSums(countsTrapnell>0)==x))
+idVector=1:nrow(pickrell)
+nGenes=nrow(pickrell)
+nCol=ncol(pickrell)
+start=1
+end=60
+for(i in start:end){
+    hlp <- addZero(idVector=idVector, p=pZeroTrapnell[i-start+1], nGenes=nGenes)
+    idVector=hlp[[2]]
+    pickrell[hlp[[1]],sample(1:nCol,nCol-i)]=0
+}
+dPickrell <- DGEList(pickrell)
+dPickrell <- calcNormFactors(dPickrell)
+dPickrell <- estimateGLMTagwiseDisp(estimateGLMCommonDisp(dPickrell,design,interval=c(0,10)),design,prior.df=0)
+
+
+
 ### simulate RNA-Seq data with high number of samples and plot BCV
 library(tweeDEseqCountData)
 data(pickrell)
@@ -88,18 +203,12 @@ plotBCV(dSimZero)
 
 ## plot for in paper
 #bcvPlotsIntro.pdf
-par(mfrow=c(2,2), mar=c(5,4,1,1))
+par(mfrow=c(2,3), mar=c(5,4,1,1))
 plotBCV(dEmp)
 plotBCV(dSim, ylim=c(0,2.5))
 
 plotBCV(dZero)
 plotBCV(dSimZero,ylim=c(0,2.5))
-
-
-##### sample comparison smooth scatter plots
-par(mfrow=c(1,2),mar=c(5,5,3,1))
-smoothScatter(x=log10(islam[,1]),y=log10(islam[,2]),xlab="log10 counts", ylab="log10 counts", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
-smoothScatter(x=log10(pickrell[,1]),y=log10(pickrell[,2]),xlab="log10 counts", ylab="log10 counts", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
 
 
 
