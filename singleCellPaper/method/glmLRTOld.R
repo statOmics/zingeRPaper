@@ -1,6 +1,6 @@
 ## got it from https://github.com/Bioconductor-mirror/edgeR/blob/release-3.0/R/glmfit.R
 
-glmLRTOld <- function(glmfit,coef=ncol(glmfit$design),contrast=NULL,test="chisq")
+glmLRTOld <- function(glmfit,coef=ncol(glmfit$design),contrast=NULL,test="chisq",ZI=TRUE)
 #	Tagwise likelihood ratio tests for DGEGLM
 #	Gordon Smyth, Davis McCarthy and Yunshun Chen.
 #	Created 1 July 2010.  Last modified 22 Nov 2013.
@@ -70,7 +70,7 @@ glmLRTOld <- function(glmfit,coef=ncol(glmfit$design),contrast=NULL,test="chisq"
 #	Likelihood ratio statistic
 	LR <- fit.null$deviance - glmfit$deviance
 	### ADDED
-	fit.null$df.residual <- rowSums(fit.null$weights)-ncol(design0)
+	if(ZI) fit.null$df.residual <- rowSums(fit.null$weights)-ncol(design0)
 	## END ADDED
 	df.test <- fit.null$df.residual - glmfit$df.residual ## okay
 
