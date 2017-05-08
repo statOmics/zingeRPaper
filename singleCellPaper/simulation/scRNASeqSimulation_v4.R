@@ -90,7 +90,7 @@ legend("topright",c("real","simulated"),pch=19,col=1:2, bty="n", cex=.6)
 #dev.off()
 
 ### performance characteristics
-selectedMethods <- c("edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voomZeroFiltered",  "DESeq2", "DESeq2_poscounts", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "DESeq2Zero_wald_posCountsNormZeroWeights", "edgeR_robust", "edgeR", "edgeROldF", "limma_voom", "limma_voomFiltered", "metagenomeSeq","edgeRFiltered", "NODES", "MAST_count")
+selectedMethods <- c("edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voomZeroFiltered",  "DESeq2", "DESeq2_poscounts", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "edgeR_robust", "edgeR", "edgeROldF", "limma_voom", "limma_voomFiltered", "metagenomeSeq","edgeRFiltered", "NODES", "MAST_count")
 
 group=grp
 pvalsIslam <- pval(dataIslamAllAveLogCPM, method=selectedMethods, mc.cores=2, niter=200)
@@ -104,9 +104,6 @@ for(k in 1:length(pvalsIslam$padj)) pvalsIslam$padj[[k]][is.na(pvalsIslam$padj[[
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/scdePIslam.rda")
 
 
-resDeseq2Wald= DESeq2Zero_wald_posCountsNormZeroWeights.pfun(counts=dataIslamAllAveLogCPM$counts, group=grp, niter=200)
-resDeseq2Wald[is.na(resDeseq2Wald)]=1
-
 #FDR-TPR
 truthIslam=data.frame(status=rep(0,nTags), row.names=rownames(dataIslamAllAveLogCPM))
 truthIslam[dataIslamAllAveLogCPM$indDE,"status"]=1
@@ -115,7 +112,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 					 DESeq2=pvalsIslam$pval$DESeq2,
 					 DESeq2_poscounts=pvalsIslam$pval$DESeq2_poscounts,
 					 zingeR_DESeq2=pvalsIslam$pval$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					 zingeR_DESeq2_wald=resDeseq2Wald[,"pval"],
+					 #zingeR_DESeq2_wald=resDeseq2Wald[,"pval"],
 					 limma_voom=pvalsIslam$pval$limma_voom,
 					 zingeR_limma_voom=pvalsIslam$pval$limma_voomZero,
 					 edgeR=pvalsIslam$pval$edgeR,
@@ -131,7 +128,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 				     DESeq2=pvalsIslam$padj$DESeq2,
 				     DESeq2_poscounts=pvalsIslam$padj$DESeq2_poscounts,
 					 zingeR_DESeq2=pvalsIslam$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					 zingeR_DESeq2_wald=resDeseq2Wald[,"padj"],
+					 #zingeR_DESeq2_wald=resDeseq2Wald[,"padj"],
 				     limma_voom=pvalsIslam$padj$limma_voom, 
 					 zingeR_limma_voom=pvalsIslam$padj$limma_voomZero,	
 				     edgeR=pvalsIslam$padj$edgeR,
@@ -144,7 +141,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 				     	row.names = rownames(dataIslamAllAveLogCPM)),
                    truth = truthIslam)
 cobraperf <- calculate_performance(cobraIslam, binary_truth = "status")
-colors=c(limma_voom="blue", zingeR_limma_voom="steelblue", edgeR="red", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", MAST_count="purple", metagenomeSeq="green", scde="grey", NODES="black", zingeR_DESeq2_wald="steelblue")
+colors=c(limma_voom="blue", zingeR_limma_voom="steelblue", edgeR="red", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", MAST_count="purple", metagenomeSeq="green", scde="grey", NODES="black", zingeR_DESeq2_wald="steelblue", MAST2="salmon", MAST2_count="dodgerblue", DESeq2_poscounts_DESeq="gold", DESeq2_separate="aquamarine3")
 colsCobra=colors[match(sort(names(cobraperf@overlap)[1:(ncol(cobraperf@overlap)-1)]),names(colors))]
 cobraplot <- prepare_data_for_plot(cobraperf, colorscheme=colsCobra)
 #save(cobraplot,file="~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotIslam.rda")
@@ -188,7 +185,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 				     DESeq2_poscounts=pvalsIslamHighFC$padj$DESeq2_poscounts,
 					 zingeR_DESeq2=pvalsIslamHighFC$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
 				     limma_voom=pvalsIslamHighFC$padj$limma_voom, 
-					 zingeR_limma_voom=pvalsIslamHighFC$padj$limma_voomZero,	
+					 zingeR_limma_voom=pvalsIslamHighFC$padj$limma_voomZero,
 				     edgeR=pvalsIslamHighFC$padj$edgeR,
 					 #edgeRFiltered=pvalsIslamHighFC$padj$edgeRFiltered,
 					 #edgeREMLRT=hlpEdgeRZeroLRT[,"padj"],
@@ -369,16 +366,13 @@ points(x=aveLogCPM(dataTrapnell$counts),y=rowMeans(dataTrapnell$counts==0), xlab
 
 selectedMethods <- c("edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voomZeroFiltered",  "DESeq2", "DESeq2_poscounts", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "DESeq2Zero_wald_posCountsNormZeroWeights", "edgeR_robust", "edgeR", "edgeROldF", "limma_voom", "limma_voomFiltered", "metagenomeSeq","edgeRFiltered", "NODES", "MAST_count")
 group=grp
-pvalsTrapnell = pval(dataTrapnell,method=selectedMethods,niter=200, mc.cores=1)
+pvalsTrapnell = pval(dataTrapnell,method=selectedMethods,niter=200, mc.cores=2)
 #save(pvalsTrapnell,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsTrapnellPaper.rda")
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsTrapnellPaper.rda")
 for(k in 1:length(pvalsTrapnell$padj)) pvalsTrapnell$padj[[k]][is.na(pvalsTrapnell$padj[[k]])]=1
 #scdePTrapnell=scde.pfun(dataTrapnell$counts,group=grp,mc.cores=1) #gives trouble in parallellization
 #save(scdePTrapnell,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/scdePTrapnell.rda")
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/scdePTrapnell.rda")
-
-resDeseq2Wald= DESeq2Zero_wald_posCountsNormZeroWeights.pfun(counts=dataTrapnell$counts, group=grp, niter=200)
-resDeseq2Wald[is.na(resDeseq2Wald)]=1
 
 #FDR-TPR
 library(iCOBRA)
@@ -393,7 +387,6 @@ cobraTrapnell <- COBRAData(pval =data.frame(#edgeRRobust=pvalsTrapnell$pval$edge
 					    DESeq2=pvalsTrapnell$pval$DESeq2,
 					    DESeq2_poscounts=pvalsTrapnell$pval$DESeq2_poscounts,
 					    zingeR_DESeq2=pvalsTrapnell$pval$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					    zingeR_DESeq2_wald=resDeseq2Wald[,"pval"],
 					    MAST=pvalsTrapnell$pval$MAST,
 					    MAST_count=pvalsTrapnell$pval$MAST_count,
 					    metagenomeSeq=pvalsTrapnell$pval$metagenomeSeq,
@@ -409,7 +402,6 @@ cobraTrapnell <- COBRAData(pval =data.frame(#edgeRRobust=pvalsTrapnell$pval$edge
 				     DESeq2=pvalsTrapnell$padj$DESeq2,
 				     DESeq2_poscounts=pvalsTrapnell$padj$DESeq2_poscounts, 
 					 zingeR_DESeq2=pvalsTrapnell$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					 zingeR_DESeq2_wald=resDeseq2Wald[,"padj"],
 				     MAST=pvalsTrapnell$padj$MAST,
 				     MAST_count=pvalsTrapnell$padj$MAST_count,
 				     metagenomeSeq=pvalsTrapnell$padj$metagenomeSeq,
@@ -439,6 +431,7 @@ pvalsTrapnellHighFC = pval(dataTrapnellHighFC,method=selectedMethods,niter=200, 
 #save(pvalsTrapnellHighFC,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsTrapnellHighFCPaper.rda")
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsTrapnellHighFCPaper.rda")
 for(k in 1:length(pvalsTrapnellHighFC$padj)) pvalsTrapnellHighFC$padj[[k]][is.na(pvalsTrapnellHighFC$padj[[k]])]=1
+for(k in 1:length(pvalsTrapnellHighFC$pval)) pvalsTrapnellHighFC$pval[[k]][is.na(pvalsTrapnellHighFC$pval[[k]])]=1
 #scdePHighFC=scde.pfun(dataTrapnellHighFC$counts,group=grp)
 #save(scdePHighFC,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/scdePHighFCTrapnell.rda")
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/scdePHighFCTrapnell.rda")
@@ -614,6 +607,24 @@ plot_fdrtprcurve(cobraplotGaussian)
 ## main plot
 library(cowplot)
 load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotIslam.rda")
+islamPlot=plot_fdrtprcurve(cobraplot, pointsize=2, xaxisrange=c(0,0.5), yaxisrange=c(0,0.75))
+load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotTrapnell.rda")
+trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2, xaxisrange=c(0,0.5), yaxisrange=c(0,0.75))
+#plot_grid(islamPlot,trapnellPlot, labels = c("A", "B"))
+prow <- plot_grid( islamPlot + theme(legend.position="none"),
+           trapnellPlot + theme(legend.position="none"),
+           align = 'vh',
+           labels = c("A", "B"),
+           hjust = -1,
+           nrow = 1
+           )
+legend_b <- get_legend(islamPlot + theme(legend.position="bottom"))
+p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
+p
+
+## main plot not cut off
+library(cowplot)
+load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotIslam.rda")
 islamPlot=plot_fdrtprcurve(cobraplot, pointsize=2)
 load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotTrapnell.rda")
 trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2)
@@ -628,6 +639,7 @@ prow <- plot_grid( islamPlot + theme(legend.position="none"),
 legend_b <- get_legend(islamPlot + theme(legend.position="bottom"))
 p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
 p
+
 
 ## including ZI limma-voom plot
 library(cowplot)
@@ -667,20 +679,20 @@ p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
 p
 
 ## DESeq2 variants
-load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotDESeq2Islam.rda")
-islamPlot=plot_fdrtprcurve(cobraplotDESeq2, pointsize=2)
-load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotDESeq2Trapnell.rda")
-trapnellPlot=plot_fdrtprcurve(cobraplotDESeq2, pointsize=2)
-prow <- plot_grid( islamPlot + theme(legend.position="none"),
-           trapnellPlot + theme(legend.position="none"),
-           align = 'vh',
-           labels = c("A", "B"),
-           hjust = -1,
-           nrow = 1
-           )
-legend_b <- get_legend(islamPlot + theme(legend.position="bottom"))
-p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
-p
+# load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotDESeq2Islam.rda")
+# islamPlot=plot_fdrtprcurve(cobraplotDESeq2, pointsize=2)
+# load("~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotDESeq2Trapnell.rda")
+# trapnellPlot=plot_fdrtprcurve(cobraplotDESeq2, pointsize=2)
+# prow <- plot_grid( islamPlot + theme(legend.position="none"),
+#            trapnellPlot + theme(legend.position="none"),
+#            align = 'vh',
+#            labels = c("A", "B"),
+#            hjust = -1,
+#            nrow = 1
+#            )
+# legend_b <- get_legend(islamPlot + theme(legend.position="bottom"))
+# p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
+# p
 
 
 

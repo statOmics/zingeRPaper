@@ -26,7 +26,7 @@ dIslam=calcNormFactors(dIslam)
 dIslam=estimateGLMTagwiseDisp(estimateGLMCommonDisp(dIslam,design, interval=c(0,10)),design,prior.df=0)
 dIslamTrend=estimateDisp(dIslam,design,prior.df=0)
 
-#zeroWeights=zeroWeightsLibSize(counts=islam,niter=30,design=model.matrix(~cellType))
+#zeroWeights=zeroWeightsLibSize(counts=islam, niter=30, design=model.matrix(~cellType))
 zeroWeights=zeroWeightsLibSizeDispFast(counts=islam,maxit=100,design=model.matrix(~cellType))
 dW=DGEList(islam)
 dW=calcNormFactors(dW)
@@ -134,6 +134,20 @@ dWeighted=d
 dWeightedTrend=estimateGLMTrendedDisp(dWeighted,design)
 plotBCV(d, ylim=c(0,3))
 
+### ROC curve for identifying excess zeros
+pvalSeq = c(1e-15,1e-14,1e-13,1e-12,1e-10,1e-9,1e-8,1e-7,1e-6,seq(.00001,.005,by=.00001),seq(.005,1,by=.005))
+falses=which(dataNoZI$counts==0)
+tpr=fpr=vector(length=length(pvalSeq))
+for(i in 1:length(pvalSeq)){
+    excessID <- which(zeroWeightsSim<=pvalSeq[i])
+    tpr[i] <- mean(samp%in%excessID)
+    fpr[i] <- mean(falses%in%excessID)
+}
+plot(x=fpr,y=tpr,type="l", xlab="False positive rate", ylab="True positive rate", lwd=2, col="steelblue")
+points(x=fpr[pvalSeq==1e-5],y=tpr[pvalSeq==1e-5],col=2,pch=19)
+points(x=fpr[pvalSeq==1e-2],y=tpr[pvalSeq==1e-2],col=2,pch=19) #w=0.01
+points(x=fpr[519],y=tpr[519],col=2,pch=19) #w=0.05
+
 
 ##### plot for paper: RNA-seq
 par(mar=c(4.1,4.25,3,1),bty="l", mfrow=c(1,4), cex.lab=1.5, cex.axis=1.5)
@@ -171,10 +185,12 @@ wMean=sapply(1:nrow(zeroWeightsSim), function(i){
 })
 wMean[is.na(wMean)]=1
 library(Hmisc)
-cuts=cut2(wMean,cuts=seq(0,1,by=0.25))
+#cuts=cut2(wMean,cuts=seq(0,1,by=0.25))
+cuts=cut2(wMean,cuts=c(0,0.25,0.75,1))
 
 
-dev.new(width=10,height=5)
+#dev.new(width=10,height=5)
+png("introPlotZingeR.png", width=10,height=5, units="in", res=330)
 ##### plot for paper: RNA-seq
 library(scales)
 par(mar=c(4.1,4.25,3,1),bty="l", mfrow=c(2,4), cex.lab=1.5, cex.axis=1.5)
@@ -187,20 +203,28 @@ mtext("a" ,at=-5, font=2, cex=4/3)
 #cols=colorRampPalette(c("red","yellow","springgreen","royalblue"))(12)
 
 
-cols=c("red","orange","salmon","black")
+#cols=c("red","orange","salmon","black")
+cols=c("red","gold","black")
 plot(x=dZeroes$AveLogCPM,y=sqrt(dZeroes$tagwise.dispersion),pch=16,cex=.2,ylim=c(0,2.5),xlab="Average Log CPM", ylab="BCV",col=alpha(cols[as.numeric(cuts)],1/3), type="n")
-sapply(4:1,function(i){
+#sapply(c(4,1,2,3),function(i){
+sapply(c(3,1,2),function(i){
 	points(x=dZeroes$AveLogCPM[cuts==levels(cuts)[i]],y=sqrt(dZeroes$tagwise.dispersion)[cuts==levels(cuts)[i]],pch=16,cex=.2, col=alpha(cols[i]))
-	   
 })
 o<- order(dZeroes$AveLogCPM)
 lines(dZeroes$AveLogCPM[o], sqrt(dZeroesTrend$trended.dispersion)[o], col = "blue",lwd = 2)
-legend("topleft",legend=c("[0,0.25)", "[0.25,0.5)", "[0.5,0.75)", "[0.75,1]" ),col=cols[1:5],lty=1, bty="n",lwd=2, cex=.8,inset=c(0,-0.045))
+#legend("topleft",legend=c("[0,0.25)", "[0.25,0.5)", "[0.5,0.75)", "[0.75,1]" ),col=cols[1:5],lty=1, bty="n",lwd=2, cex=.8,inset=c(0,-0.045))
+legend("topleft",legend=c("[0,0.25)", "[0.25,0.75)", "[0.75,1]" ),col=cols,lty=1, bty="n",lwd=2, cex=.9,inset=c(0,-0.045))
 mtext("b" ,at=-5, font=2, cex=4/3)
 
+#hlpHist = hist(zeroId[zeroId==0], breaks=seq(0,1,.05), plot=FALSE)
+#hlpHist$counts[hlpHist$counts>0] = log(hlpHist$counts[hlpHist$counts>0])
+#plot(hlpHist)
+#hlpHistSim = hist(zeroWeightsSim[samp],breaks=seq(0,1,.05), plot=FALSE)
+#hlpHistSim$counts[hlpHistSim$counts>0] = log(hlpHistSim$counts[hlpHistSim$counts>0])
+#plot(hlpHistSim, add=TRUE, col=rgb(0.1,0.8,0.1,.2))
 hist(zeroId[zeroId==0],xlim=c(0,.95),breaks=seq(0,1,.05),main="",xlab="Posterior probability")
 hist(zeroWeightsSim[samp],add=TRUE,breaks=seq(0,1,.05),col=rgb(0.1,0.8,0.1,.2))
-legend("topright",c("truth","zingeR"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n", cex=1.5)
+legend("topright",c("nr. true excess zeros","zingeR probabilities"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n", cex=1.25)
 mtext("c" ,at=-0.22, font=2, cex=4/3)
 
 plot(x=dWeighted$AveLogCPM,y=sqrt(dWeighted$tagwise.dispersion),pch=16,cex=.2,ylim=c(0,2.5),xlab="Average Log CPM", ylab="BCV",col=alpha("black",1/3))
@@ -208,7 +232,7 @@ o <- order(dWeighted$AveLogCPM)
 lines(dOriginal$AveLogCPM[o], sqrt(dOriginalTrend$trended.dispersion)[o], col = "red",lwd = 2)
 lines(dZeroes$AveLogCPM[o], sqrt(dZeroesTrend$trended.dispersion)[o], col = "blue",lwd = 2)
 lines(dWeighted$AveLogCPM[o], sqrt(dWeightedTrend$trended.dispersion)[o], col = "steelblue1",lwd = 2)
-legend("topright",c("NB model, RNA-seq","NB model, ZI RNA-seq","ZINB model, ZI RNA-seq"),lty=1,lwd=2,col=c("red","blue","steelblue1"),bty="n")
+legend("topright",c("NB model, NB simul.","NB model, ZINB simul.","ZINB model, ZINB simul."),lty=1,lwd=2,col=c("red","blue","steelblue1"),bty="n")
 mtext("d" ,at=-5, font=2, cex=4/3)
 
 
@@ -243,7 +267,91 @@ lines(dIslam$AveLogCPM[o], sqrt(dIslamTrend$trended.dispersion)[o], col = "red",
 lines(dW$AveLogCPM[o], sqrt(dWTrend$trended.dispersion)[o], col = "steelblue1",lwd = 2)
 legend("topright",c("NB model, scRNA-seq","ZINB model, scRNA-seq"),lty=1,col=c("red","steelblue1"),lwd=2,bty="n")
 mtext("h" ,at=-0.5, font=2, cex=4/3)
+dev.off()
 
 
 
+
+#######################################
+### one composite plot, version 2 ################
+#######################################
+wMean=sapply(1:nrow(zeroWeightsSim), function(i){
+	  mean(zeroWeightsSim[i,dataZeroes$counts[i,]==0])
+})
+wMean[is.na(wMean)]=1
+library(Hmisc)
+cuts=cut2(wMean,cuts=seq(0,1,by=0.25))
+
+png("hlp.png", width=10,height=5, units="in", res=330)
+#dev.new(width=10,height=5)
+##### plot for paper: RNA-seq
+library(scales)
+par(mar=c(4.1,4.25,3,1),bty="l", mfrow=c(2,4), cex.lab=1.5, cex.axis=1.5)
+plot(x=dOriginal$AveLogCPM,y=sqrt(dOriginal$tagwise.dispersion),pch=16,cex=.2,ylim=c(0,2.5),xlab="Average Log CPM", ylab="BCV",col=alpha("black",1/3))
+o <- order(dOriginal$AveLogCPM)
+lines(dOriginal$AveLogCPM[o], sqrt(dOriginalTrend$trended.dispersion)[o], col = "red",lwd = 2)
+mtext("a" ,at=-5, font=2, cex=4/3)
+
+
+cols=c("red","orange","salmon","black")
+plot(x=dZeroes$AveLogCPM,y=sqrt(dZeroes$tagwise.dispersion),pch=16,cex=.2,ylim=c(0,2.5),xlab="Average Log CPM", ylab="BCV",col=alpha(cols[as.numeric(cuts)],1/3), type="n")
+sapply(c(4,1,2,3),function(i){
+	points(x=dZeroes$AveLogCPM[cuts==levels(cuts)[i]],y=sqrt(dZeroes$tagwise.dispersion)[cuts==levels(cuts)[i]],pch=16,cex=.2, col=alpha(cols[i]))
+})
+o<- order(dZeroes$AveLogCPM)
+lines(dZeroes$AveLogCPM[o], sqrt(dZeroesTrend$trended.dispersion)[o], col = "blue",lwd = 2)
+legend("topleft",legend=c("[0,0.25)", "[0.25,0.5)", "[0.5,0.75)", "[0.75,1]" ),col=cols[1:5],lty=1, bty="n",lwd=2, cex=.8,inset=c(0,-0.045))
+mtext("b" ,at=-5, font=2, cex=4/3)
+
+#hist(zeroId[zeroId==0],xlim=c(0,.95),breaks=seq(0,1,.05),main="",xlab="Posterior probability")
+#hist(zeroWeightsSim[samp],add=TRUE,breaks=seq(0,1,.05),col=rgb(0.1,0.8,0.1,.2))
+#legend("topright",c("truth","zingeR"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n", cex=1.5)
+
+plot(x=fpr,y=tpr,type="l", xlab="False positive rate", ylab="True positive rate", lwd=2, col="steelblue")
+points(x=fpr[pvalSeq==1e-5],y=tpr[pvalSeq==1e-5],col=2,pch=19)
+points(x=fpr[pvalSeq==1e-2],y=tpr[pvalSeq==1e-2],col=2,pch=19) #w=0.01
+points(x=fpr[519],y=tpr[519],col=2,pch=19) #w=0.05
+mtext("c" ,at=-0.22, font=2, cex=4/3)
+
+plot(x=dWeighted$AveLogCPM,y=sqrt(dWeighted$tagwise.dispersion),pch=16,cex=.2,ylim=c(0,2.5),xlab="Average Log CPM", ylab="BCV",col=alpha("black",1/3))
+o <- order(dWeighted$AveLogCPM)
+lines(dOriginal$AveLogCPM[o], sqrt(dOriginalTrend$trended.dispersion)[o], col = "red",lwd = 2)
+lines(dZeroes$AveLogCPM[o], sqrt(dZeroesTrend$trended.dispersion)[o], col = "blue",lwd = 2)
+lines(dWeighted$AveLogCPM[o], sqrt(dWeightedTrend$trended.dispersion)[o], col = "steelblue1",lwd = 2)
+legend("topright",c("NB model, NB simul.","NB model, ZINB simul.","ZINB model, ZINB simul."),lty=1,lwd=2,col=c("red","blue","steelblue1"),bty="n")
+mtext("d" ,at=-5, font=2, cex=4/3)
+
+
+### scRNA-seq
+plot(dIslam$AveLogCPM,sqrt(dIslam$tagwise.dispersion),pch=16,cex=.2,col=alpha("black",1/3),xlim=c(1.8,12), xlab="Average Log CPM", ylab="BCV")
+o <- order(dIslam$AveLogCPM)
+lines(dIslam$AveLogCPM[o], sqrt(dIslamTrend$trended.dispersion)[o], col = "red",lwd = 2)
+mtext("e" ,at=-0.5, font=2, cex=4/3)
+
+plot(x=log(colSums(islam)),y=colMeans(islam==0),pch=19,cex=2/3, xlab="Log library size", ylab="Fraction of zeros", ylim=c(0.05,0.95))
+## use weights to extract model
+w=zeroWeights
+successes <- colSums(1-w) #P(zero)
+failures <- colSums(w) #1-P(zero)
+counts=islam
+counts <- DGEList(counts)
+counts <- edgeR::calcNormFactors(counts)
+effLibSize <- counts$samples$lib.size*counts$samples$norm.factors
+logEffLibSize <- log(effLibSize)
+zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")
+grid=seq(min(logEffLibSize),max(logEffLibSize),length.out=100)
+yHatZero=predict(zeroFit,newdata=data.frame(logEffLibSize=grid),type="response")
+lines(x=grid,y=yHatZero,col="salmon",lwd=2)
+mtext("f" ,at=9, font=2, cex=4/3)
+
+hist(zeroWeights[islam==0],main="",xlab="Posterior probability")
+mtext("g" ,at=-.22, font=2, cex=4/3)
+
+plot(dW$AveLogCPM,sqrt(dW$tagwise.dispersion),pch=16,cex=.2,xlab="Average Log CPM", ylab="BCV", xlim=c(1.8,12), ylim=c(0,12),col=alpha("black",1/3))
+o <- order(dW$AveLogCPM)
+lines(dIslam$AveLogCPM[o], sqrt(dIslamTrend$trended.dispersion)[o], col = "red",lwd = 2)
+lines(dW$AveLogCPM[o], sqrt(dWTrend$trended.dispersion)[o], col = "steelblue1",lwd = 2)
+legend("topright",c("scRNA-seq: NB model","scRNA-seq: ZINB model"),lty=1,col=c("red","steelblue1"),lwd=2,bty="n")
+mtext("h" ,at=-0.7, font=2, cex=4/3)
+dev.off()
 

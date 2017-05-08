@@ -350,7 +350,10 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 	  colData <- data.frame(group)
 	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
 	  colData(dse)$group <- as.factor(colData(dse)$group)
-	  dse <- DESeq(dse, betaPrior=TRUE)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse = estimateSizeFactors(dse)
+	  dse = estimateDispersions(dse)
+	  dse = nbinomWaldTest(dse, betaPrior=TRUE)
 	  res <- results(dse)
 	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
           out
@@ -368,6 +371,22 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 	  dse <- estimateSizeFactors(dse,type="poscounts")
 	  dse <- estimateDispersions(dse)
 	  dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
+}
+
+DESeq2_poscounts_DESeq.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {   
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse <- estimateSizeFactors(dse,type="poscounts")
+	  dse <- DESeq(dse, betaPrior=TRUE)
 	  res <- results(dse)
 	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
       out
@@ -1990,7 +2009,7 @@ scde.pfun <- function(counts, group, design=NULL, mc.cores=1, niter=NULL){
     return(out)
 }
 
-MAST.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
+MAST_oldWrong.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     require(MAST)
     #convert to tpm
     tpm <- counts*1e6/colSums(counts) #consider equal length across all features since we did not take length into account while simulating.
@@ -2014,7 +2033,32 @@ MAST.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
 }
 
 
-MAST_count.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
+MAST.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
+    require(MAST)
+    #convert to tpm
+    tpm <- log2((counts+1)*1e6/colSums(counts)) #consider equal length across all features since we did not take length into account while simulating.
+    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=group))
+    ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
+    CD <- cData(sca)
+    CD$ngeneson <- ngeneson
+    CD$cngeneson <- CD$ngeneson-mean(ngeneson)
+    cData(sca) <- CD  
+    ## differential expression 
+    fit <- zlm.SingleCellAssay(~cngeneson+group,sca=sca,method="bayesglm",ebayes=TRUE)
+    L=matrix(0,nrow=ncol(coef(fit,"D")))
+    rownames(L)=colnames(coef(fit,"D"))
+    L["group1",]=1
+    lrFit <- lrTest(fit, hypothesis=L)
+    pval=lrFit[,'hurdle','Pr(>Chisq)']
+    padj=p.adjust(pval,method="BH")
+    lfc=NA
+    out=cbind(pval,padj,lfc)
+    return(out)
+}
+
+
+
+MAST_count_oldWrong.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     require(MAST)
     #convert to tpm
     tpm <- counts*1e6/colSums(counts) #consider equal length across all features since we did not take length into account while simulating.
@@ -2036,6 +2080,31 @@ MAST_count.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     out=cbind(pval,padj,lfc)
     return(out)
 }
+
+
+MAST_count.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
+    require(MAST)
+    #convert to tpm
+    tpm <- log2((counts+1)*1e6/colSums(counts)) #consider equal length across all features since we did not take length into account while simulating.
+    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=group))
+    ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
+    CD <- cData(sca)
+    CD$ngeneson <- ngeneson
+    CD$cngeneson <- CD$ngeneson-mean(ngeneson)
+    cData(sca) <- CD  
+    ## differential expression 
+    fit <- zlm.SingleCellAssay(~cngeneson+group,sca=sca,method="bayesglm",ebayes=TRUE)
+    L=matrix(0,nrow=ncol(coef(fit,"D")))
+    rownames(L)=colnames(coef(fit,"D"))
+    L["group1",]=1
+    lrFit <- lrTest(fit, hypothesis=L)
+    pval=lrFit[,'cont','Pr(>Chisq)'] 
+    padj=p.adjust(pval,method="BH")
+    lfc=NA
+    out=cbind(pval,padj,lfc)
+    return(out)
+}
+
 
 
 positiveHurdleTPM.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){

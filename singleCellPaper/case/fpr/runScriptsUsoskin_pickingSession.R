@@ -1,14 +1,14 @@
 
-
 runEdgeR <- function(e) {
-  design <- model.matrix(~ pData(e)$condition)
+  library(edgeR)
+  condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  design <- model.matrix(~ condition + pickingSession)
   dgel <- DGEList(exprs(e))
   dgel <- edgeR::calcNormFactors(dgel)
   dgel=estimateDisp(dgel,design)
   edger.fit <- glmFit(dgel, design)
-  edger.lrt <- glmLRT(edger.fit)
-  #predbeta <- predFC(exprs(e), design, offset=getOffset(dgel), dispersion=dgel$tagwise.dispersion)
-  #predbeta10 <- predFC(exprs(e), design, prior.count=10, offset=getOffset(dgel), dispersion=dgel$tagwise.dispersion)
+  edger.lrt <- glmLRT(edger.fit, coef="conditionB")
   pvals <- edger.lrt$table$PValue
   padj <- p.adjust(pvals,method="BH")
   padj[is.na(padj)] <- 1
@@ -16,14 +16,16 @@ runEdgeR <- function(e) {
 }
 
 runEdgeRRobust <- function(e) {
-  design <- model.matrix(~ pData(e)$condition)
+    library(edgeR)
+  condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  design <- model.matrix(~ condition + pickingSession)
   dgel <- DGEList(exprs(e))
   dgel <- edgeR::calcNormFactors(dgel)
   # settings for robust from robinson_lab/edgeR_robust/robust_simulation.R
   dgel <- estimateGLMRobustDisp(dgel, design, maxit=6)
   edger.fit <- glmFit(dgel, design)
-  edger.lrt <- glmLRT(edger.fit)
-  predbeta <- predFC(exprs(e), design, offset=getOffset(dgel), dispersion=dgel$tagwise.dispersion)
+  edger.lrt <- glmLRT(edger.fit, coef="conditionB")
   pvals <- edger.lrt$table$PValue
   padj <- p.adjust(pvals,method="BH")
   padj[is.na(padj)] <- 1
@@ -32,13 +34,16 @@ runEdgeRRobust <- function(e) {
 
 
 runVoom <- function(e) {
-  design <- model.matrix(~ condition, pData(e))
+  library(limma)
+  condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  design <- model.matrix(~ condition + pickingSession)
   dgel <- DGEList(exprs(e))
   dgel <- edgeR::calcNormFactors(dgel)
   v <- voom(dgel,design,plot=FALSE)
   fit <- lmFit(v,design)
   fit <- eBayes(fit)
-  tt <- topTable(fit,coef=ncol(design),n=nrow(dgel),sort.by="none")
+  tt <- topTable(fit,coef="conditionB",n=nrow(dgel),sort.by="none")
   pvals <- tt$P.Value 
   padj <- p.adjust(pvals,method="BH")
   padj[is.na(padj)] <- 1
@@ -46,26 +51,26 @@ runVoom <- function(e) {
 }
 
 runDESeq2 <- function(e, retDDS=FALSE) {
-    library(DESeq2)
-  dds <- DESeqDataSetFromMatrix(exprs(e), DataFrame(pData(e)), ~ condition)
-  dds <- DESeq(dds,betaPrior=TRUE,quiet=TRUE)
-  res <- results(dds)
-  beta <- res$log2FoldChange
+  library(DESeq2)
+  dds <- DESeqDataSetFromMatrix(exprs(e), colData=DataFrame(pData(e)), design=~ condition + pickingSession)
+  #dds <- DESeq(dds, betaPrior=TRUE, quiet=TRUE, modelMatrixType="standard")
+  dds = estimateSizeFactors(dds)
+  dds = estimateDispersions(dds)
+  dds = nbinomWaldTest(dds, betaPrior=TRUE, modelMatrixType="standard")
+  res <- results(dds, name="condition_B_vs_A")
   pvals <- res$pvalue
   padj <- res$padj
-  pvals[is.na(pvals)] <- 1
   padj[is.na(padj)] <- 1
   return(list(pvals=pvals, padj=padj, beta=beta))
 }
 
 runDESeq2_poscounts <- function(e, retDDS=FALSE) {
     library(DESeq2)
-  dds <- DESeqDataSetFromMatrix(exprs(e), DataFrame(pData(e)), ~ condition)
+  dds <- DESeqDataSetFromMatrix(exprs(e), colData=DataFrame(pData(e)), design=~ condition + pickingSession)
   dds <- estimateSizeFactors(dds,type="poscounts")
   dds <- estimateDispersions(dds)
-  dds <- nbinomWaldTest(dds,betaPrior=TRUE)
-  res <- results(dds)
-  beta <- res$log2FoldChange
+  dds <- nbinomWaldTest(dds, betaPrior=TRUE, modelMatrixType="standard")
+  res <- results(dds, name="condition_B_vs_A")
   pvals <- res$pvalue
   padj <- res$padj
   pvals[is.na(pvals)] <- 1
@@ -428,8 +433,10 @@ source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/method/glmLRTOl
 
 runEdgeREMLibSize=function(e){
     #function(counts, group, design=NULL, mc.cores=2, niter=50){
-	design <- model.matrix(~ pData(e)$condition)
-	library(edgeR) ; library(genefilter)
+  library(edgeR) ; library(genefilter)
+  condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  design <- model.matrix(~ condition + pickingSession)	
 	d <- DGEList(exprs(e))
 	d <- edgeR::calcNormFactors(d)
 	#not adding a design matrix models the zeroes with the library size automatically
@@ -470,8 +477,8 @@ runScde <- function(e){
     # estimate gene expression prior
     o.prior <- scde.expression.prior(models = o.ifm, counts = exprs(e), length.out = 400, show.plot = FALSE)
     # run differential expression tests on all genes.
-    ediff <- scde.expression.difference(o.ifm, exprs(e), o.prior, groups  =  pData(e)$condition, n.randomizations  =  100, n.cores  =  1, verbose  =  0)
-    pvals=(1-pnorm(abs(ediff$Z)))*2
+    ediff <- scde.expression.difference(o.ifm, exprs(e), o.prior, groups  =  pData(e)$condition, n.randomizations  =  100, n.cores  =  1, verbose  =  0, batch=pData(e)$pickingSession)
+    pvals=(1-pnorm(abs(ediff$batch.adjusted$Z)))*2
     padj=p.adjust(pvals,method="BH")
     list(Z=ediff$Z,pvals=pvals,padj=padj)
 }
@@ -480,15 +487,15 @@ runScde <- function(e){
 runMAST <- function(e){
     require(MAST)
     counts=exprs(e)
-    tpm <- counts*1e6/colSums(counts)
-    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=pData(e)$condition))
-    ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
+    tpm <- log2((counts+1)*1e6/colSums(counts))    
+    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=pData(e)$condition, pickingSession=pData(e)$pickingSession))
+    ngeneson <- apply(exprs(e),2,function(x) mean(x>0))
     CD <- cData(sca)
     CD$ngeneson <- ngeneson
     CD$cngeneson <- CD$ngeneson-mean(ngeneson)
     cData(sca) <- CD
      ## differential expression 
-    fit <- zlm.SingleCellAssay(~cngeneson+group,sca=sca,method="bayesglm",ebayes=TRUE)
+    fit <- zlm.SingleCellAssay(~cngeneson+group+pickingSession, sca=sca, method="bayesglm", ebayes=TRUE)
     L=matrix(0,nrow=ncol(coef(fit,"D")))
     rownames(L)=colnames(coef(fit,"D"))
     L["groupB",]=1
@@ -501,15 +508,15 @@ runMAST <- function(e){
 runMAST_count <- function(e){
     require(MAST)
     counts=exprs(e)
-    tpm <- counts*1e6/colSums(counts)
-    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=pData(e)$condition))
-    ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
+    tpm <- log2((counts+1)*1e6/colSums(counts))    
+    sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=pData(e)$condition, pickingSession=pData(e)$pickingSession))
+    ngeneson <- apply(exprs(e),2,function(x)mean(x>0))
     CD <- cData(sca)
     CD$ngeneson <- ngeneson
     CD$cngeneson <- CD$ngeneson-mean(ngeneson)
     cData(sca) <- CD
      ## differential expression 
-    fit <- zlm.SingleCellAssay(~cngeneson+group,sca=sca,method="bayesglm",ebayes=TRUE)
+    fit <- zlm.SingleCellAssay(~cngeneson+group+pickingSession, sca=sca, method="bayesglm", ebayes=TRUE)
     L=matrix(0,nrow=ncol(coef(fit,"D")))
     rownames(L)=colnames(coef(fit,"D"))
     L["groupB",]=1
@@ -520,50 +527,52 @@ runMAST_count <- function(e){
 }
 
 
-runLimmaHurdle <- function(e){
-    ## limma voom pipeline ##
-	library(limma)
-	counts=exprs(e)
-	group=pData(e)$condition
-	zeroId=counts==0
- 	design = model.matrix(~group)
-	nf <- edgeR::calcNormFactors(counts)
-	y <- voom(counts, design, plot=FALSE, lib.size = colSums(counts)*nf, weights=1-zeroId)
-	y$weights=(1-zeroId)*y$weights
-	fit <- lmFit(y, design)
-	fit <- eBayes(fit)
-	tt <- topTable(fit,coef=2,n=nrow(counts), sort.by = "none")
-	pval <- tt$P.Value
-	padj <- tt$adj.P.Val
-	lfc <- tt$logFC
-	list(pvals = pval, padj = padj)
-}
+# runLimmaHurdle <- function(e){
+#     ## limma voom pipeline ##
+# 	library(limma)
+# 	counts=exprs(e)
+# 	group=pData(e)$condition
+# 	zeroId=counts==0
+#  	design = model.matrix(~group)
+# 	nf <- edgeR::calcNormFactors(counts)
+# 	y <- voom(counts, design, plot=FALSE, lib.size = colSums(counts)*nf, weights=1-zeroId)
+# 	y$weights=(1-zeroId)*y$weights
+# 	fit <- lmFit(y, design)
+# 	fit <- eBayes(fit)
+# 	tt <- topTable(fit,coef=2,n=nrow(counts), sort.by = "none")
+# 	pval <- tt$P.Value
+# 	padj <- tt$adj.P.Val
+# 	lfc <- tt$logFC
+# 	list(pvals = pval, padj = padj)
+# }
 
 
 
-runEdgeRHurdle <- function(e) {
-  design <- model.matrix(~ pData(e)$condition)
-  dgel <- DGEList(exprs(e))
-  dgel$weights <- 1-(exprs(e)==0)
-  dgel <- edgeR::calcNormFactors(dgel)
-  dgel=estimateDisp(dgel,design)
-  edger.fit <- glmFit(dgel, design)
-  edger.lrt <- glmLRT(edger.fit)
-  pvals <- edger.lrt$table$PValue
-  padj <- p.adjust(pvals,method="BH")
-  padj[is.na(padj)] <- 1
-  list(pvals=pvals, padj=padj)
-}
+# runEdgeRHurdle <- function(e) {
+#   design <- model.matrix(~ pData(e)$condition)
+#   dgel <- DGEList(exprs(e))
+#   dgel$weights <- 1-(exprs(e)==0)
+#   dgel <- edgeR::calcNormFactors(dgel)
+#   dgel=estimateDisp(dgel,design)
+#   edger.fit <- glmFit(dgel, design)
+#   edger.lrt <- glmLRT(edger.fit)
+#   pvals <- edger.lrt$table$PValue
+#   padj <- p.adjust(pvals,method="BH")
+#   padj[is.na(padj)] <- 1
+#   list(pvals=pvals, padj=padj)
+# }
 
 runMetagenomeSeq <- function(e){
   require(metagenomeSeq)
-  design <- model.matrix(~pData(e)$condition)
-  pheno <- AnnotatedDataFrame(data.frame(group=pData(e)$condition))
+  condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  design <- model.matrix(~ condition + pickingSession)    
+  pheno <- AnnotatedDataFrame(data.frame(group=condition, pickingSession=pickingSession))
   rownames(pheno) <- colnames(exprs(e))
   p <- cumNormStatFast(exprs(e))
   dat <- newMRexperiment(counts=exprs(e), phenoData=pheno, featureData = NULL, libSize = colSums(exprs(e)), normFactors = metagenomeSeq::calcNormFactors(exprs(e), p=p))
   fit <- fitZig(dat,design)
-  pvals <- fit$eb$p.value[,"pData(e)$conditionB"]
+  pvals <- fit$eb$p.value[,"conditionB"]
   padj <- p.adjust(pvals,method="BH")
   list(pvals=pvals, padj=padj)
 }
@@ -572,20 +581,19 @@ runMetagenomeSeq <- function(e){
 runDESeq2Zero <- function(e){
       ## implement DESeq2 ##
     library(DESeq2) ; library(genefilter)
-    condition=pData(e)$condition
-    colData=DataFrame(pData(e))
-    dse <- DESeqDataSetFromMatrix(exprs(e), colData, ~ condition)
+    condition = pData(e)$condition
+  pickingSession = pData(e)$pickingSession
+  dse <- DESeqDataSetFromMatrix(exprs(e), colData=DataFrame(pData(e)), design=~ condition + pickingSession)
     dse <- estimateSizeFactors(dse, type="poscounts")
     effLogLibSize <- log(colSums(counts(dse))*(1/sizeFactors(dse)))
-    pickingSession = pData(e)[,"Picking sessions"]
     designZI=model.matrix(~effLogLibSize + pickingSession)
-    zeroWeights = zeroWeightsLibSizeDispFast(counts(dse), design=model.matrix(~condition), colData=colData, plot=FALSE, maxit=200, initialWeightAt0=TRUE, plotW=FALSE, normalization="DESeq2_pos", designZI=designZI)
+    zeroWeights = zeroWeightsLibSizeDispFast(counts(dse), design=model.matrix(~condition + pickingSession), colData=colData(dse), plot=FALSE, maxit=200, initialWeightAt0=TRUE, plotW=FALSE, normalization="DESeq2_pos", designZI=designZI)
     dimnames(zeroWeights) = NULL
     assays(dse)[["weights"]] = zeroWeights
     dse <- estimateDispersions(dse)
-    dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+    dse <- nbinomWaldTest(dse, betaPrior=TRUE, modelMatrixType="standard")
     #dse <- DESeq(dse, betaPrior=TRUE)
-    res <- results(dse)
+    res <- results(dse, name="condition_B_vs_A")
     baseMean=unname(rowMeans(sweep(counts(dse),2,1/sizeFactors(dse),FUN="*")))
     pvalDesZero = 2*(1-pt(abs(res$stat),df=rowSums(zeroWeights)-2))
     padjusted = pvalueAdjustment_kvdb(pValue=pvalDesZero, filter=baseMean, alpha=0.05)
