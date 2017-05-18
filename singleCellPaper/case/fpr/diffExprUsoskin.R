@@ -202,7 +202,7 @@ library(DESeq2) ; library(edgeR) ; library(limma) ; library(scde) ; library(MAST
 source("runScriptsUsoskin_pickingSession.R")
 
 
-algos <-  list("zingeR_edgeR"=runEdgeREMLibSize, "edgeR"=runEdgeR, "limma-voom"=runVoom, "DESeq2"=runDESeq2, "MAST"=runMAST, "scde"=runScde, "metagenomeSeq"=runMetagenomeSeq, "zingeR_DESeq2"=runDESeq2Zero, "DESeq2_poscounts"=runDESeq2_poscounts, "MAST_count"=runMAST_count)
+algos <-  list("zingeR_edgeR"=runEdgeREMLibSize, "edgeR"=runEdgeR, "limma-voom"=runVoom, "DESeq2"=runDESeq2, "MAST"=runMAST, "scde"=runScde, "metagenomeSeq"=runMetagenomeSeq, "zingeR_DESeq2"=runDESeq2Zero, "DESeq2_poscounts"=runDESeq2_poscounts)
 
 namesAlgos <- names(algos)
 names(namesAlgos) <- namesAlgos
@@ -271,7 +271,7 @@ for(i in 1:ncol(pDataset)) hist(pDataset[,i], main=colnames(pDataset)[i])
 ## p-value histogram for the first iteration
 par(mfrow=c(5,2))
 o=c(2,1,3,6,5,10,7,4,9,8)
-sapply(1:length(res[[1]]), function(i) hist(res[[1]][[o[i]]]$pvals, main=names(res[[1]])[o[i]], xlab=""))
+sapply(1:length(res[[1]]), function(i) hist(res[[1]][[o[i]]]$pvals, main=names(res[[1]])[o[i]], xlab="", breaks=seq(0,1,by=0.05)))
 
 
 

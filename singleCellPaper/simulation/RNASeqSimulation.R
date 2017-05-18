@@ -1,4 +1,4 @@
-source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v5.R")
+source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v6.R")
 source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/method/glmLRTOld.R")
 
 #########################################################
@@ -18,7 +18,8 @@ DEind = sample(1:nTags,floor(nTags/20),replace=FALSE) #5% differentially express
 fcSim <- (2 + rexp(length(DEind), rate = 1)) #adapted from Soneson et al. 2016, Genome Biology
 set.seed(1)
 dataNoZI <- NBsim(foldDiff = fcSim, ind=DEind, dataset = bottomly, nTags = nTags, group = grp, verbose = TRUE, add.outlier = FALSE, drop.extreme.dispersion = FALSE, lib.size=libSize, drop.low.lambda=TRUE)
-selectedMethods <- c("MAST", "MAST_count", "edgeR_robust", "limma_voom","edgeR", "edgeROldF" ,"DESeq2", "DESeq2_poscounts" , "edgeREMLibSizeDispFastOldFFilteredEdgeR", "NODES", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "DESeq2Zero_wald_posCountsNormZeroWeights")
+selectedMethods <- c("DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voom","edgeR","DESeq2", "DESeq2_poscounts" , "NODES")
+group=grp
 pvalsNoZI <- pval(dataNoZI, method=selectedMethods, count.type="counts", mc.cores=1, niter=200)
 #save(pvalsNoZI,file="~/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsNoZI.rda")
 load("~/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsNoZI.rda")
@@ -28,37 +29,31 @@ scdeP=scde.pfun(dataNoZI$counts,grp)
 library(iCOBRA)
 truthNoZI=data.frame(status=rep(0,nTags), row.names=rownames(dataNoZI))
 truthNoZI[dataNoZI$indDE,"status"]=1
-cobraNoZI <- COBRAData(pval =data.frame( #edgeRRobust=pvalsNoZI$pval$edgeR_robust, 
+cobraNoZI <- COBRAData(pval =data.frame(
 					limma_voom=pvalsNoZI$pval$limma_voom, 
 					edgeR=pvalsNoZI$pval$edgeR,
-					#edgeROldF=pvalsNoZI$pval$edgeROldF,
 					zingeR_edgeR=pvalsNoZI$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
 					DESeq2=pvalsNoZI$pval$DESeq2,
 					DESeq2_poscounts=pvalsNoZI$pval$DESeq2_poscounts,
 					zingeR_DESeq2=pvalsNoZI$pval$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					#zingeR_DESeq2_wald=pvalsNoZI$pval$DESeq2Zero_wald_posCountsNormZeroWeights,
 					MAST=pvalsNoZI$pval$MAST,
-					MAST_count=pvalsNoZI$pval$MAST_count,
 					NODES=pvalsNoZI$pval$NODES,
 					scde=scdeP[,"pval"],
 					row.names = rownames(dataNoZI)), 
-		   padj = data.frame( #edgeRRobust=pvalsNoZI$padj$edgeR_robust, 
+		   padj = data.frame( 
 				     limma_voom=pvalsNoZI$padj$limma_voom, 
 				     edgeR=pvalsNoZI$padj$edgeR,
-				     #edgeROldF=pvalsNoZI$pad$edgeROldF,
 				     zingeR_edgeR=pvalsNoZI$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
 				     DESeq2=pvalsNoZI$padj$DESeq2,
 				     DESeq2_poscounts=pvalsNoZI$padj$DESeq2_poscounts,
 				     zingeR_DESeq2=pvalsNoZI$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-				     #zingeR_DESeq2_wald=pvalsNoZI$padj$DESeq2Zero_wald_posCountsNormZeroWeights,
 				     MAST=pvalsNoZI$padj$MAST,
-				     MAST_count=pvalsNoZI$padj$MAST_count,
 				     NODES=pvalsNoZI$padj$NODES,
 				     scde=scdeP[,"padj"],
 				     row.names = rownames(dataNoZI)),
                    truth = truthNoZI)
 cobraperf <- calculate_performance(cobraNoZI, binary_truth = "status")
-colors=c(limma_voom="blue", limma_voomZero="steelblue", edgeRTruth="chocolate1", edgeR="red", edgeROldF="coral2", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", zingeR_DESeq2_wald="steelblue", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", MAST_count="purple", metagenomeSeq="green", scde="grey", NODES="black")
+colors=c(limma_voom="blue", limma_voomZero="steelblue", edgeRTruth="chocolate1", edgeR="red", zingeR_edgeR="salmon", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", MAST="darkturquoise", metagenomeSeq="green", scde="grey", NODES="black")
 colsCobra=colors[match(sort(names(cobraperf@overlap)[1:(ncol(cobraperf@overlap)-1)]),names(colors))]
 cobraplot <- prepare_data_for_plot(cobraperf, colorscheme=colsCobra)
 plot_fdrtprcurve(cobraplot, pointsize=2)
@@ -74,12 +69,14 @@ zeroId[samp]=0
 zeroId[dataNoZI$counts==0]=1 #if it already was a zero it is not zero-inflated.
 samp=samp[!samp%in%which(dataNoZI$counts==0)] #same
 dataZeroes$counts = dataZeroes$counts*zeroId
-selectedMethods <- c("MAST", "MAST_count", "edgeR_robust", "limma_voom","edgeR", "edgeROldF" ,"DESeq2", "DESeq2_poscounts" , "edgeREMLibSizeDispFastOldFFilteredEdgeR", "NODES", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "DESeq2Zero_wald_posCountsNormZeroWeights")
+selectedMethods <- c("DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voom","edgeR","DESeq2", "DESeq2_poscounts" , "NODES")
 pvalsZeroes = pval(dataZeroes, method=selectedMethods, count.type="counts", mc.cores=1, niter=200)
 #save(pvalsZeroes,file="~/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsZeroes.rda")
 load("~/Dropbox/PhD/Research/zeroInflation/singleCell/pvalsZeroes.rda")
 ## edgeR with ground truth
-pvalEdgeRGroundTruth <- edgeRWeightedOldF.pfun(counts=dataZeroes$counts, group=grp, weights=zeroId)
+weightHlp = zeroId
+weightHlp[weightHlp==0]=1e-6 #does not really allow zero weights.
+pvalEdgeRGroundTruth <- edgeRWeightedOldF.pfun(counts=dataZeroes$counts, group=grp, weights=weightHlp)
 ## DESeq2 with ground truth
 pvalDESeq2GroundTruth <- DESeq2_weightedT.pfun(counts=dataZeroes$counts, group=grp, weights=zeroId)
 scdePZero=scde.pfun(dataZeroes$counts,grp)
@@ -88,7 +85,7 @@ scdePZero=scde.pfun(dataZeroes$counts,grp)
 #rnaSeqPerformanceWithZeroes.pdf
 truthZero=data.frame(status=rep(0,nTags), row.names=rownames(dataZeroes))
 truthZero[dataZeroes$indDE,"status"]=1
-cobraZero <- COBRAData(pval =data.frame( #edgeRRobust=pvalsZeroes$pval$edgeR_robust, 
+cobraZero <- COBRAData(pval =data.frame(
 					limma_voom=pvalsZeroes$pval$limma_voom, 
 					DESeq2=pvalsZeroes$pval$DESeq2,
 					DESeq2_poscounts=pvalsZeroes$pval$DESeq2_poscounts,
@@ -98,11 +95,10 @@ cobraZero <- COBRAData(pval =data.frame( #edgeRRobust=pvalsZeroes$pval$edgeR_rob
 					zingeR_edgeR=pvalsZeroes$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
 					edgeRTruth = pvalEdgeRGroundTruth[,1], 
 					MAST=pvalsZeroes$pval$MAST,
-					MAST_count=pvalsZeroes$pval$MAST_count,
 					NODES=pvalsZeroes$pval$NODES,
 					scde=scdePZero[,"pval"],
 					row.names = rownames(dataZeroes)), 
-		   padj = data.frame( #edgeRRobust=pvalsZeroes$padj$edgeR_robust, 
+		   padj = data.frame(
 				     limma_voom=pvalsZeroes$padj$limma_voom, 
 				     DESeq2=pvalsZeroes$padj$DESeq2,
 				     DESeq2_poscounts=pvalsZeroes$padj$DESeq2_poscounts,
@@ -112,13 +108,12 @@ cobraZero <- COBRAData(pval =data.frame( #edgeRRobust=pvalsZeroes$pval$edgeR_rob
 				     zingeR_edgeR=pvalsZeroes$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
 				     edgeRTruth = pvalEdgeRGroundTruth[,2], 
 				     MAST=pvalsZeroes$padj$MAST,
-				     MAST_count=pvalsZeroes$padj$MAST_count,
 				     NODES=pvalsZeroes$padj$NODES,
 				     scde=scdePZero[,"padj"],
 				     row.names = rownames(dataZeroes)),
                    truth = truthZero)
 cobraperf <- calculate_performance(cobraZero, binary_truth = "status")
-colors=c(limma_voom="blue", limma_voomZero="steelblue", edgeRTruth="chocolate1", edgeR="red", edgeROldF="coral2", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", zingeR_DESeq2_wald="steelblue", DESeq2Zero_phyloNorm="forestgreen", DESeq2Truth="forestgreen", MAST="darkturquoise", MAST_count="purple", metagenomeSeq="green", scde="grey", NODES="black")
+colors=c(limma_voom="blue", edgeRTruth="chocolate1", edgeR="red", zingeR_edgeR="salmon", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Truth="forestgreen", MAST="darkturquoise", metagenomeSeq="green", scde="grey", NODES="black")
 colsCobra=colors[match(sort(names(cobraperf@overlap)[1:(ncol(cobraperf@overlap)-1)]),names(colors))]
 cobraplotZero <- prepare_data_for_plot(cobraperf, colorscheme=colsCobra)
 plot_fdrtprcurve(cobraplotZero, pointsize=2)
@@ -135,8 +130,9 @@ prow <- plot_grid( plot_fdrtprcurve(cobraplot, pointsize=2) + theme(legend.posit
            )
 legend_b <- get_legend(plot_fdrtprcurve(cobraplotZero, pointsize=2) + theme(legend.position="bottom"))
 p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/RNASeq_composite.png", width=7,height=8, units="in", res=300)
 p
-
+dev.off()
 
 
 ## plot a histogram of the weights for the introduced zeroes
@@ -145,9 +141,10 @@ hist(weights[samp[dataNoZI$counts[samp]!=0]], xlab="weight", xlim=c(0,1), main="
 
 
 ## ROC curve for identifying excess zeros
-weights=zeroWeightsLibSizeDispFast(counts=dataZeroes$counts, design=model.matrix(~grp), maxit=100, plotW=TRUE)
+weights=zeroWeightsLibSizeDispFast(counts=dataZeroes$counts, design=model.matrix(~grp), maxit=200, plotW=TRUE)
 hist(weights[samp], xlab="weight", xlim=c(0,1), main="")
 
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/rocExcessZerosRNASeqSimulation_composite.png", width=8,height=6, units="in", res=300)
 pvalSeq = c(1e-15,1e-14,1e-13,1e-12,1e-10,1e-9,1e-8,1e-7,1e-6,seq(.00001,.005,by=.00001),seq(.005,1,by=.005))
 falses=which(dataNoZI$counts==0)
 tpr=fpr=vector(length=length(pvalSeq))
@@ -192,13 +189,7 @@ cols=colorRampPalette(c("skyblue","darkblue"))(length(levels(cuts)))
 plot(x=fpr2[[1]],y=tpr2[[1]],col="steelblue",type="n", xlab="False positive rate", ylab="True positive rate")
 for(k in 1:length(levels(cuts))) lines(x=fpr2[[k]],y=tpr2[[k]],col=cols[k], lty=k)
 legend("bottomright",levels(cuts),col=cols,lty=1:length(levels(cuts)))
-
-
-
-
-
-
-
+dev.off()
 
 
 

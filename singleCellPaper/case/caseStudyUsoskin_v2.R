@@ -5,7 +5,7 @@ usoskin=usoskin[!rowSums(usoskin)==0,]
 #cellTypeUsoskin=factor(pData(eset)[,7], levels=c("NF", "NP", "PEP", "TH"))
 pickingSession=factor(pData(eset)[,2])
 cellTypeAll=factor(pData(eset)[,"Level 3"],exclude=TRUE)
-source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v5.R") ## for weight functions
+source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v6.R") ## for weight functions
 source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/method/glmLRTOld.R")
 
 
@@ -51,6 +51,9 @@ lines(x=sort(logLib[pickingSession=="RT-2"]),y=expit(a+b*sort(logLib[pickingSess
 
 
 ### ANALYSES
+is.wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
+    abs(x - round(x)) < tol
+}
 zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, initialWeightAt0=TRUE, maxit=100, plot=FALSE, plotW=FALSE, designZI=NULL, llTol=1e-4, normalization="TMM"){
     require(edgeR) ; require(DESeq2)
     if(plot | plotW) par(mfrow=c(1,plot+plotW))    
@@ -81,7 +84,7 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 
     for(i in 1:maxit){
 	j=j+1
-        zeroId <- counts$counts==0	
+    zeroId <- counts$counts==0	
 	counts$weights <- w
 	
 	### M-step counts
@@ -110,7 +113,7 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 
 	## data log-likelihood
 	if(i>1) llOld=ll
-	ll <- log(pi0HatMat*zeroId + (1-pi0HatMat)*likC)
+	ll <- log(pi0HatMat*zeroId + (1-pi0HatMat)*likC + 1e-6)
 
 	delta <- (rowSums(ll)-rowSums(llOld))/(rowSums(llOld)+llTol)
 	if(mean(abs(delta) < llTol)>.999){ #if 99.9% has converged
@@ -145,14 +148,13 @@ dUsoskin=DGEList(usoskin)
 dUsoskin=calcNormFactors(dUsoskin)
 effLogLib=log(dUsoskin$samples$lib.size*dUsoskin$samples$norm.factors)
 setwd("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR/")
-weightsUsoskinBatchZingeREdgeR = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib+pickingSession), design=model.matrix(~cellTypeAll+pickingSession), maxit=300, plotW=TRUE, normalization="TMM")
-
-#save(weightsUsoskinBatch,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinBatchLibSizeDispFast300Iter.rda")
-dUsoskin$weights=weightsUsoskinBatch
+w = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib+pickingSession), design=model.matrix(~cellTypeAll+pickingSession), maxit=500, plotW=TRUE, normalization="TMM")
+#save(w,file="weightsConvergedZingeREdgeRUsoskin.rda")
+#convergence after 476 iterations.
+load("weightsConvergedZingeREdgeRUsoskin.rda")
+dUsoskin$weights=w
 design=model.matrix(~cellTypeAll+pickingSession)
-dUsoskin=estimateDispWeighted(dUsoskin,design,weights=weightsUsoskinBatch)
-#save(dUsoskin,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/dUsoskinWeightedBatchLibSizeDispFast300Iter.rda")
-load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/dUsoskinWeightedBatchLibSizeDispFast300Iter.rda")
+dUsoskin=estimateDisp(dUsoskin,design)
 plotBCV(dUsoskin)
 fitBatch = glmFit(dUsoskin,design)
 ## testing every celltype against the average of the other 10 celltypes
@@ -178,7 +180,7 @@ for(i in 1:ncol(L)) lrtList[[i]] <- glmLRTOld(fitBatch,contrast=L[,i],test="F")
 baseMean = unname(rowMeans(sweep(dUsoskin$counts,2,dUsoskin$samples$norm.factors,FUN="*")))
 library(genefilter)
 padjListBatch <- lapply(lrtList, function(x) pvalueAdjustment_kvdb(baseMean=baseMean, pValue=x$table$PValue))
-deGenesBatch=unlist(lapply(padjListBatch,function(x) sum(x$padj<.05,na.rm=TRUE)))
+unlist(lapply(padjListBatch,function(x) sum(x$padj<.05,na.rm=TRUE)))
 
 
 
@@ -187,18 +189,50 @@ deGenesBatch=unlist(lapply(padjListBatch,function(x) sum(x$padj<.05,na.rm=TRUE))
 dUsoskin=DGEList(usoskin)
 dUsoskin=calcNormFactors(dUsoskin)
 effLogLib=log(dUsoskin$samples$lib.size*dUsoskin$samples$norm.factors)
-pdf("~/Dropbox/phdKoen/singleCell/usoskinweightsAllCellTypesNoBatchInZeroModel_v2.pdf")
-weightsUsoskinNoBatch = zeroWeightsLibSizeDispFast(counts=usoskin, designZI=model.matrix(~effLogLib), design=model.matrix(~cellTypeAll+pickingSession), maxit=300, plotW=TRUE)
-dev.off()
+setwd("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR_noBatch/")
+#pdf("~/Dropbox/phdKoen/singleCell/usoskinweightsAllCellTypesNoBatchInZeroModel_v2.pdf")
+weightsUsoskinNoBatch = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib), design=model.matrix(~cellTypeAll+pickingSession), maxit=500, plotW=TRUE, normalization="TMM")
+#dev.off()
 #save(weightsUsoskinNoBatch,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
 load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
 
-library(scales)
-par(mar=c(5,4.5,4,1))
-hist(weightsUsoskinBatch[usoskin==0],xlab="Posterior probability",main="",cex.lab=2,cex.axis=2)
-hist(weightsUsoskinNoBatch[usoskin==0],add=TRUE,col=rgb(0.1,0.8,0.1,.2))
-legend("topleft",c("picking session + effective lib. size","effective lib. size"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n",cex=1.5)
 
+######### PLOT
+## P(zero) ~ library size
+png("~/usoskin.png", width=10,height=5, units="in", res=330)
+par(mfrow=c(1,3))
+expit <- function(x) 1/(1+exp(-x))
+## not including batch effect
+par(mar=c(5,4.5,4,1))
+logLib=log(colSums(usoskin))
+pZero=colMeans(usoskin==0)
+plot(x=logLib,y=pZero, xlab="Log library size", ylab="Fraction of zero's", main= "", cex.lab=2, cex.main=2, bty="l", pch=1, cex.axis=1.5, col=as.numeric(pickingSession))
+m <- glm(pZero~logLib,family="binomial")
+a <- coef(m)[1]
+b <- coef(m)[2]
+lines(x=sort(logLib),y=expit(a+b*sort(logLib)),lwd=2,col="steelblue")
+legend("bottomleft",c("Cold","RT-1","RT-2"),col=1:3,pch=1,cex=1.5)
+
+## including main batch effect
+plot(x=logLib,y=pZero, xlab="Log library size", ylab="Fraction of zero's", main= "", cex.lab=2, cex.main=2, bty="l", pch=1, cex.axis=1.5, col=as.numeric(pickingSession))
+m2 <- glm(pZero~logLib+pickingSession,family="binomial")
+a <- coef(m2)[1]
+b <- coef(m2)[2]
+lines(x=sort(logLib[pickingSession=="Cold"]),y=expit(a+b*sort(logLib[pickingSession=="Cold"])),lwd=2,col=1)
+a <- coef(m2)[1]+coef(m2)[3]
+b <- coef(m2)[2]
+lines(x=sort(logLib[pickingSession=="RT-1"]),y=expit(a+b*sort(logLib[pickingSession=="RT-1"])),col=2,lwd=2)
+a <- coef(m2)[1]+coef(m2)[4]
+lines(x=sort(logLib[pickingSession=="RT-2"]),y=expit(a+b*sort(logLib[pickingSession=="RT-2"])),col=3,lwd=2)
+legend("bottomleft",c("Cold","RT-1","RT-2"),col=1:3,lty=1,cex=1.5)
+
+load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR/weightsConvergedZingeREdgeRUsoskin.rda")
+par(mar=c(5,4.5,4,1))
+hist(w[usoskin==0],xlab="Posterior probability",main="",cex.lab=2,cex.axis=2, ylim=c(0,3e6))
+load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
+hist(weightsUsoskinNoBatch[usoskin==0],add=TRUE,col=rgb(0.1,0.8,0.1,.2))
+legend("topleft",c("picking session + effective lib. size","effective lib. size"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n",cex=1.25)
+dev.off()
 
 ### edgeR analysis
 design=model.matrix(~cellTypeAll+pickingSession)
@@ -294,8 +328,6 @@ for(i in 1:ncol(L)) resList[[i]] = results(dse,contrast=L[,i])
 #save(resList,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/resListPoscountsUsoskin.rda")
 
 
-
-
 ### MAST analysis on cpm
 load("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/case/esetUsoskinCpm.RData")
 library(MAST)
@@ -334,56 +366,19 @@ unlist(lapply(padjListHurdle,function(x) sum(x<=0.05))) #nr DE genes at 5%
 padjListCont <- lapply(lrList,function(x) p.adjust(x[,'cont','Pr(>Chisq)'],"BH"))
 unlist(lapply(padjListCont,function(x) sum(x<=0.05))) #nr DE genes at 5%
 
-### limma-voom hurdle model analysis
-keep=rowSums(usoskin>0)>13
-usoskinFiltHurdle=usoskin[keep,]
-library(limma)
-d=DGEList(usoskinFiltHurdle)
-d=calcNormFactors(d)
-design = model.matrix(~cellTypeAll+pickingSession)
-zeroId=usoskinFiltHurdle==0
-weights=zeroId
-weights[zeroId==FALSE]=1
-weights[zeroId==TRUE]=0.001
-d$weights=weights
-y=voom(d,design,weights=d$weights)
-#y$weights=y$weights*weights #heteroscedastic*hurdle weights
-fit <- lmFit(y, design)
-fit$df.residual=rowSums(weights)-ncol(design) #account for hurdle model weights
-fit <- eBayes(fit)
-L <- matrix(0,nrow=ncol(fit$coefficients),ncol=11)
-rownames(L) <- colnames(fit$coefficients)
-colnames(L) <- c("NF1","NF2","NF3","NF4","NF5","NP1","NP2","NP3","PEP1","PEP2","TH")
-L[2:11,1] <- -1/10 #NF1 vs. others
-L[2:11,2] <- c(1,rep(-1/10,9)) #NF2 vs. others
-L[2:11,3] <- c(-1/10,1,rep(-1/10,8)) #NF3 vs. others
-L[2:11,4] <- c(rep(-1/10,2),1,rep(-1/10,7)) #NF4 vs. others
-L[2:11,5] <- c(rep(-1/10,3),1,rep(-1/10,6)) #NF5 vs. others
-L[2:11,6] <- c(rep(-1/10,4),1,rep(-1/10,5)) #NP1 vs. others
-L[2:11,7] <- c(rep(-1/10,5),1,rep(-1/10,4)) #NP2 vs. others
-L[2:11,8] <- c(rep(-1/10,6),1,rep(-1/10,3)) #NP3 vs. others
-L[2:11,9] <- c(rep(-1/10,7),1,rep(-1/10,2)) #PEP1 vs. others
-L[2:11,10] <- c(rep(-1/10,8),1,rep(-1/10,1)) #PEP2 vs. others
-L[2:11,11] <- c(rep(-1/10,9),1) #TH vs. others
-fit2 <- contrasts.fit(fit,contrasts=L)
-
-hlp=topTable(fit2,coef=i,n=nrow(fit2),p.value=0.05) ; nrow(hlp)
 
 ###### zingeR-DESeq2
 library(DESeq2)
 dse = DESeqDataSetFromMatrix(usoskin, colData=data.frame(cellType=cellTypeAll, pickingSession=pickingSession), design=~cellType+pickingSession)
 dse = DESeq2::estimateSizeFactors(dse, type = "poscounts")
 effLogLib=colSums(usoskin)*(1/dse$sizeFactor)
-is.wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
-    abs(x - round(x)) < tol
-}
 
 
 setwd("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/")
-weightsUsoskinBatch = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib+pickingSession), design=model.matrix(~cellTypeAll+pickingSession), designFormula=~cellType+pickingSession , maxit=300, plotW=TRUE, normalization="DESeq2_poscounts")
-#save(weightsUsoskinBatch, file="~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin300iter.RData")
+weightsUsoskinBatch = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib+pickingSession), design=model.matrix(~cellTypeAll+pickingSession), designFormula=~cellType+pickingSession , maxit=500, plotW=TRUE, normalization="DESeq2_poscounts")
+#save(weightsUsoskinBatch, file="~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin500iter.RData")
 ## analysis
-load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin300iter.RData") 
+load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin500iter.RData") 
 hist(weightsUsoskinBatch[usoskin==0])
 library(DESeq2) ; library(genefilter)
 dse = DESeqDataSetFromMatrix(usoskin, colData=data.frame(cellType=cellTypeAll, pickingSession=pickingSession), design=~cellType+pickingSession)
@@ -393,7 +388,7 @@ assays(dse)[["weights"]] = weightsUsoskinBatch
 #dse <- DESeq(dse, betaPrior=TRUE, modelMatrixType="standard")
 dse = estimateDispersions(dse)
 dse = nbinomWaldTest(dse, betaPrior=TRUE, modelMatrixType="standard")
-#save(dse,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/dseZingeRDESeq2300IterUsoskin.rda")
+#save(dse,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/dseZingeRDESeq2500IterUsoskin.rda")
 L=matrix(0,nrow=length(resultsNames(dse)),ncol=11)
 rownames(L)=resultsNames(dse)
 L[2:11,1] <- -1/10 #NF1 vs. others
