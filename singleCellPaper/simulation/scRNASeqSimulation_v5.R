@@ -379,7 +379,7 @@ trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2, xaxisrange=c(0,0.5), yaxis
 prow <- plot_grid( islamPlot + theme(legend.position="none"),
            trapnellPlot + theme(legend.position="none"),
            align = 'vh',
-           labels = c("A", "B"),
+           labels = c("a", "b"),
            hjust = -1,
            nrow = 1
            )
@@ -399,7 +399,7 @@ trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2)
 prow <- plot_grid( islamPlot + theme(legend.position="none"),
            trapnellPlot + theme(legend.position="none"),
            align = 'vh',
-           labels = c("A", "B"),
+           labels = c("a", "b"),
            hjust = -1,
            nrow = 1
            )
@@ -419,7 +419,7 @@ trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2)
 prow <- plot_grid( islamPlot + theme(legend.position="none"),
            trapnellPlot + theme(legend.position="none"),
            align = 'vh',
-           labels = c("A", "B"),
+           labels = c("a", "b"),
            hjust = -1,
            nrow = 1
            )
@@ -440,7 +440,7 @@ trapnellPlot=plot_fdrtprcurve(cobraplot, pointsize=2)
 prow <- plot_grid( islamPlot + theme(legend.position="none"),
            trapnellPlot + theme(legend.position="none"),
            align = 'vh',
-           labels = c("A", "B"),
+           labels = c("a", "b"),
            hjust = -1,
            nrow = 1
            )

@@ -262,7 +262,7 @@ runScde <- function(e){
 runMAST <- function(e){
     require(MAST)
     counts=exprs(e)
-    tpm <- (counts+1)*1e6/colSums(counts)
+    tpm <- counts*1e6/colSums(counts)
     sca <- FromMatrix('SingleCellAssay', t(tpm), cData=data.frame(group=pData(e)$condition, pickingSession=pData(e)$pickingSession))
     ngeneson <- apply(exprs(e),2,function(x) mean(x>0))
     CD <- cData(sca)

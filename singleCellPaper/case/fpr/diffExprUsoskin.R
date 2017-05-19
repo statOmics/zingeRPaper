@@ -220,8 +220,8 @@ res <- lapply(1:nreps, function(i) {
     resFPR <- lapply(namesAlgos, function(n) algos[[n]](eLoop))
     return(resFPR)
 })
-#save(res,file="/Users/koenvandenberge/Dropbox/PhD/Research/singleCell/usoskin/FPR/res30Iter_highVariability_pickingSession.rda")
-load("/Users/koenvandenberge/Dropbox/PhD/Research/singleCell/usoskin/FPR/res30Iter_highVariability_pickingSession.rda")
+save(res,file="/Users/koenvandenberge/Dropbox/PhD/Research/singleCell/usoskin/FPR/res30Iter_highVariability_pickingSession_final.rda")
+load("/Users/koenvandenberge/Dropbox/PhD/Research/singleCell/usoskin/FPR/res30Iter_highVariability_pickingSession_final.rda")
 
 ### FPR evaluation boxplots
 hlp=lapply(res,function(replication){
@@ -240,16 +240,20 @@ library(ggplot2)
 #boxplotData=data.frame(fpr=unlist(c(hlp)),method=rep(namesAlgos,each=30))
 boxplotData=data.frame(fpr=c(t(fprHat)),method=rep(namesAlgos,each=nreps))
 p=ggplot(boxplotData,aes(x=reorder(method,fpr,median),y=fpr))
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/fprCallsUsoskin_highVar_pickingSession.png", width=7,height=5, units="in", res=300)
 p + geom_boxplot(outlier.colour=rgb(0,0,0,0)) + theme_bw() +
     geom_point(position = position_jitter(w = 0.1, h = 0), color="grey50", size=1) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + xlab("") + scale_colour_discrete(guide="none")  + ylab("False Positive Rate") + geom_hline(aes(yintercept=0.01,colour="red"))
+dev.off()
 
 ### without metagenomeSeq
 boxplotDataSub=boxplotData[!boxplotData$method=="metagenomeSeq",]
 
 p=ggplot(boxplotDataSub,aes(x=reorder(method,fpr,median),y=fpr))
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/fprCallsUsoskin_highVar_pickingSession_noMetagenomeSeq.png", width=7,height=5, units="in", res=300)
 p + geom_boxplot(outlier.colour=rgb(0,0,0,0)) + theme_bw() +
     geom_point(position = position_jitter(w = 0.1, h = 0), color="grey50", size=1) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size=12)) + xlab("") + theme(axis.text.y=element_text(size=12)) +
     scale_colour_discrete(guide="none")  + ylab("False Positive Rate") + geom_hline(aes(yintercept=0.01,colour="red"))
+dev.off()
 
 
 ### aggregate p-values and make histograms
@@ -265,14 +269,15 @@ colnames(pDataset)=colnames(pvalMethods[[1]])
 for(i in 1:length(namesAlgos)) pDataset[,i] = do.call(cbind,lapply(pvalMethods, function(x) x[,i]))
 
 
-par(mfrow=c(4,3))
-for(i in 1:ncol(pDataset)) hist(pDataset[,i], main=colnames(pDataset)[i])
+par(mfrow=c(3,3))
+for(i in 1:ncol(pDataset)) hist(pDataset[,i], main=colnames(pDataset)[i], xlim=c(0,1), breaks=seq(0,1,by=0.05))
 
 ## p-value histogram for the first iteration
-par(mfrow=c(5,2))
-o=c(2,1,3,6,5,10,7,4,9,8)
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/pValueHistogram_highVar_pickingSession_1iter.png", width=7,height=5, units="in", res=300)
+par(mfrow=c(3,3))
+o=c(2,1,3,4,9,8,5,6,7)
 sapply(1:length(res[[1]]), function(i) hist(res[[1]][[o[i]]]$pvals, main=names(res[[1]])[o[i]], xlab="", breaks=seq(0,1,by=0.05)))
-
+dev.off()
 
 
 
