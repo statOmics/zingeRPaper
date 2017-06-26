@@ -111,9 +111,12 @@ mtext(text="Average Log CPM",side=1,adj=.5,outer=TRUE,line=-2)
 dev.off()
 
 ##### sample comparison smooth scatter plots
+library(tweeDEseqCountData)
+data(pickrell)
+pickrell <- as.matrix(exprs(pickrell.eset))
 par(mfrow=c(1,2),mar=c(5,5,3,1))
-smoothScatter(x=log10(islam[,1]),y=log10(islam[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
-smoothScatter(x=log10(pickrell[,1]),y=log10(pickrell[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
+smoothScatter(x=log10(islam[,1]),y=log10(islam[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="scRNa-seq", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
+smoothScatter(x=log10(pickrell[,1]),y=log10(pickrell[,2]),xlab="log10(counts+1)", ylab="log10(counts+1)", main="RNA-seq", cex.main=2, cex.lab=2, cex.axis=1.5, xlim=c(0,5), ylim=c(0,5))
 
 
 ### conquer EDA over several datasets
@@ -132,7 +135,7 @@ zeroLibsizeList <- list()
 for(i in 1:length(rdsFiles)){
     if(i %in% c(4,6,9)) next
     data=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i]))
-    countData <- round(assay(experiments(data)$gene,"count"))    
+    countData <- round(assay(experiments(data)$gene,"count"))
     if(i==3){ #Shalek was split up
 	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
 	countData1 <- round(assay(experiments(data)$gene,"count"))
@@ -145,14 +148,14 @@ for(i in 1:length(rdsFiles)){
 	countData1 <- round(assay(experiments(data)$gene,"count"))
 	countData2 <- round(assay(experiments(data)$gene,"count"))
 	countData = cbind(countData1,countData2)
-	rm(data,data2,countData1,countData2); gc()	
+	rm(data,data2,countData1,countData2); gc()
     }
     if(i==8){ #Kumar was split up
 	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
 	countData1 <- round(assay(experiments(data)$gene,"count"))
 	countData2 <- round(assay(experiments(data)$gene,"count"))
 	countData = cbind(countData1,countData2)
-	rm(data,data2,countData1,countData2); gc()	
+	rm(data,data2,countData1,countData2); gc()
     }
     dat <- data.frame(logLibSize=log(colSums(countData)), zeroFraction=colMeans(countData==0))
     zeroLibsizeList[[i]]=dat
@@ -161,11 +164,11 @@ zeroLibsizeList <- zeroLibsizeList[!unlist(lapply(zeroLibsizeList,function(x) is
 
 #png(filename="~/Desktop/zeroLibSizeConquer.png",width=1000,height=800, res=80)
 par(mfrow=c(3,3), mar=c(3,3,1,1), oma=c(3,3,3,3))
-for(i in 1:9){ 
+for(i in 1:9){
     if(i%in%c(1,4,7)) par(mar=c(5,5,1,1)) else par(mar=c(5,4,1,1))
     plot(x=zeroLibsizeList[[i]][,1], y=zeroLibsizeList[[i]][,2], xlab="", ylab="", bty="l", main=rdsNamesSub[i], pch=16, cex=1/3)
     mtext("Fraction of zeros",side=2, outer=TRUE, cex=2)
-    mtext("Log library size",side=1, outer=TRUE, cex=2)    
+    mtext("Log library size",side=1, outer=TRUE, cex=2)
 }
 #dev.off()
 
@@ -174,7 +177,7 @@ zeroCpmList <- list()
 for(i in 1:length(rdsFiles)){
     if(i %in% c(4,6,9)) next
     data=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i]))
-    countData <- round(assay(experiments(data)$gene,"count"))    
+    countData <- round(assay(experiments(data)$gene,"count"))
     if(i==3){ #Shalek was split up
 	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
 	countData1 <- round(assay(experiments(data)$gene,"count"))
@@ -187,14 +190,14 @@ for(i in 1:length(rdsFiles)){
 	countData1 <- round(assay(experiments(data)$gene,"count"))
 	countData2 <- round(assay(experiments(data)$gene,"count"))
 	countData = cbind(countData1,countData2)
-	rm(data,data2,countData1,countData2); gc()	
+	rm(data,data2,countData1,countData2); gc()
     }
     if(i==8){ #Kumar was split up
 	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
 	countData1 <- round(assay(experiments(data)$gene,"count"))
 	countData2 <- round(assay(experiments(data)$gene,"count"))
 	countData = cbind(countData1,countData2)
-	rm(data,data2,countData1,countData2); gc()	
+	rm(data,data2,countData1,countData2); gc()
     }
     dat <- data.frame(avCpm=aveLogCPM(countData), zeroFraction=rowMeans(countData==0))
     zeroCpmList[[i]]=dat
@@ -203,11 +206,11 @@ zeroCpmList <- zeroCpmList[!unlist(lapply(zeroCpmList,function(x) is.null(x)))]
 
 png(filename="~/Desktop/zeroCpmConquer.png",width=1000,height=800, res=80)
 par(mfrow=c(3,3), mar=c(3,3,1,1), oma=c(3,3,3,3))
-for(i in 1:9){ 
+for(i in 1:9){
     if(i%in%c(1,4,7)) par(mar=c(5,5,1,1)) else par(mar=c(5,4,1,1))
     plot(x=zeroCpmList[[i]][,1], y=zeroCpmList[[i]][,2], xlab="", ylab="", bty="l", main=rdsNamesSub[i], pch=16, cex=1/3)
     mtext("Fraction of zeros",side=2, outer=TRUE, cex=2)
-    mtext("Average log CPM",side=1, outer=TRUE, cex=2)    
+    mtext("Average log CPM",side=1, outer=TRUE, cex=2)
 }
 dev.off()
 
@@ -320,6 +323,3 @@ plotBCV(dSim, ylim=c(0,2.5))
 
 plotBCV(dZero)
 plotBCV(dSimZero,ylim=c(0,2.5))
-
-
-

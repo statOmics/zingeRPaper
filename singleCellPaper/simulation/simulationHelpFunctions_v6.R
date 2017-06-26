@@ -5,7 +5,7 @@ library(gamlss)
 library(gamlss.tr)
 
 gen.trun(par=0, family="NBI", name="ZeroTruncated", type="left", varying=FALSE)
-getParamsZTNB <- function(counts, offset, design=NULL) {  
+getParamsZTNB <- function(counts, offset, design=NULL) {
     require(MASS)
     libSize=offset
     #fit a ZTNB model only on positive counts part
@@ -25,12 +25,12 @@ getParamsZTNB <- function(counts, offset, design=NULL) {
 }
 
 getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= "AveLogCPM"){
-    
+
         #### estimate lambda and overdispersion based on ZTNB.
 	d <- DGEList(counts)
 	cp <- cpm(d,normalized.lib.sizes=TRUE)
 	dFiltered=d
-	dFiltered <- edgeR::calcNormFactors(dFiltered)	
+	dFiltered <- edgeR::calcNormFactors(dFiltered)
         dFiltered$AveLogCPM <- aveLogCPM(dFiltered)
 	params=t(apply(dFiltered$counts,1,function(x) getParamsZTNB(counts=x,offset=dFiltered$samples$lib.size, design=design)))
 	rmRows = which(params[,2]>1) #impossibly high lambda
@@ -39,11 +39,11 @@ getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= 
 	nonZeroDispRows = which(params[,1]<0 | params[,1]==0) #negative dispersion
 	throwRows = c(rmRows,rmRows2,naRows,nonZeroDispRows)
 	params = params[-throwRows,]
-	
+
 	### estimate logistic GAM P(zero) ~ s(aveLogCPM) + logLibSize
 	### use unfiltered data for this model.
 	propZero = colMeans(counts==0)
-	propZeroGene = rowMeans(counts==0)	
+	propZeroGene = rowMeans(counts==0)
 	d <- DGEList(counts)
 	d <- edgeR::calcNormFactors(d)
 	if(cpm=="AveLogCPM"){ avCpm <- aveLogCPM(d)} else if(cpm=="aCpm"){ avCpm <- aCPM(d$counts)} else {stop("cpm must be either AveLogCPM or aCPM")}
@@ -51,7 +51,7 @@ getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= 
     	breaks = cpmHist$breaks
     	mids = cpmHist$mids
     	midsHlp=rep(mids,ncol(d$counts))
-	logLibSize = log(colSums(counts))	
+	logLibSize = log(colSums(counts))
     	logLibHlp=rep(logLibSize,each=length(mids))
 	binHlp=sapply(breaks[-length(breaks)],function(x) avCpm>x)
   	binId=apply(binHlp,1,function(x) max(which(x)))
@@ -59,20 +59,20 @@ getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= 
 			    binRows <- binId==bin
 			    if(sum(binRows)==0) rep(0,ncol(counts)) else
 			    if(sum(binRows)==1) (counts[which(binRows),]!=0)*1 else
-				colSums(counts[which(binRows),]!=0) 
+				colSums(counts[which(binRows),]!=0)
 	    }))
 	nullCounts = t(sapply(1:length(mids), function(bin){
 		    	binRows <- binId==bin
 		    	if(sum(binRows)==0) rep(0,ncol(counts)) else
-		    	if(sum(binRows)==1) (counts[which(binRows),]==0)*1 else 
-			    colSums(counts[which(binRows),]==0)  	   
+		    	if(sum(binRows)==1) (counts[which(binRows),]==0)*1 else
+			    colSums(counts[which(binRows),]==0)
 	    }))
 	expectCounts=cbind(c(nullCounts),c(nonNullCounts))
 	#zeroFit=mgcv::gam(expectCounts~s(midsHlp)+logLibHlp,family=binomial)
 	zeroFit=mgcv::gam(expectCounts~s(midsHlp,by=logLibHlp),family=binomial)
 
 	### drop extreme dispersions
-        dFiltered$AveLogCPM <- aveLogCPM(dFiltered)	
+        dFiltered$AveLogCPM <- aveLogCPM(dFiltered)
 	dFiltered$AveLogCPM <- dFiltered$AveLogCPM[-throwRows]
 	propZeroGene = propZeroGene[-throwRows]
 	params=data.frame(dispersion=params[,1], lambda=params[,2], aveLogCpm=dFiltered$AveLogCPM, propZeroGene=propZeroGene)
@@ -80,9 +80,9 @@ getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= 
 	AveLogCPM <- params$aveLogCpm
 	lambda <- params$lambda
 	propZeroGene <- params$propZeroGene
-	
+
 	if(is.numeric(drop.extreme.dispersion))
-	{   
+	{
 		bad <- quantile(dispersion, 1-drop.extreme.dispersion, names = FALSE, na.rm=TRUE)
 		ids <- dispersion <= bad
 		AveLogCPM <- AveLogCPM[ids]
@@ -98,7 +98,7 @@ getDatasetZTNB = function(counts, design, drop.extreme.dispersion = FALSE, cpm= 
 	dataset.lambda <- lambda
 	dataset.propZeroGene <- propZeroGene
 	dataset.lib.size <- d$samples$lib.size
-	dataset.nTags <- nrow(d) 
+	dataset.nTags <- nrow(d)
 	list(dataset.AveLogCPM = dataset.AveLogCPM, dataset.dispersion = dataset.dispersion, dataset.lib.size = dataset.lib.size, dataset.nTags = dataset.nTags, dataset.propZeroFit=zeroFit, dataset.lambda=lambda, dataset.propZeroGene=propZeroGene, dataset.breaks = breaks, dataset.cpm=cpm)
 }
 
@@ -125,7 +125,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		Dispersion <- dispersion[id_r]
 		Dispersion[Dispersion>max.dispersion] = max.dispersion
 		Dispersion[Dispersion<min.dispersion] = min.dispersion
-		propZeroGene <- propZeroGene[id_r]	
+		propZeroGene <- propZeroGene[id_r]
 		Lambda <- expandAsMatrix(Lambda, dim = c(nTags, nlibs))
 		object$Lambda <- Lambda
 		Dispersion <- expandAsMatrix(Dispersion, dim = c(nTags, nlibs))
@@ -136,7 +136,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 	diff.fun <- function(object)
 	{
 		group <- object$group
-		pUp <-  object$pUp 
+		pUp <-  object$pUp
 		foldDiff <- object$foldDiff
 		Lambda <- object$Lambda
 		nTags <- object$nTags
@@ -145,7 +145,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		if(length(ind)>0 & !all(foldDiff==1)) {
 			fcDir <- sample(c(-1,1), length(ind), prob=c(1-pUp,pUp), replace=TRUE)
 			Lambda[ind,g] <- Lambda[ind,g]*exp(log(foldDiff)/2*fcDir)
-			Lambda[ind,!g] <- Lambda[ind,!g]*exp(log(foldDiff)/2*(-fcDir)) 
+			Lambda[ind,!g] <- Lambda[ind,!g]*exp(log(foldDiff)/2*(-fcDir))
 			### biological zeros
 			#AveLogCPM[ind,g] = AveLogCPM[ind,g]*exp(log(foldDiff)/2*fcDir)
 			#AveLogCPM[ind,!g] = AveLogCPM[ind,!g]*exp(log(foldDiff)/2*fcDir)
@@ -161,7 +161,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		object
 	}
 	sim.fun <- function(object)
-	{   
+	{
 		Lambda <- object$Lambda
 		Dispersion <- object$Dispersion
 		nTags <- object$nTags
@@ -196,7 +196,7 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		    #zeroProbMat = expit(sweep(zeroProbMat,2,FUN="+",STATS=noiseCol))
 		}
 		## introduce random zeroes for lower count genes
-		zeroProbMat[sample(1:length(zeroProbMat), floor(randomZero*length(zeroProbMat)))]=1-1e-5		
+		zeroProbMat[sample(1:length(zeroProbMat), floor(randomZero*length(zeroProbMat)))]=1-1e-5
 		#lowCountGenesID <- which(rowMeans(zeroProbMat)>0.15)
 		#hlp=zeroProbMat[lowCountGenesID,]
 		#hlp[sample(1:length(hlp), floor(randomZero*length(hlp)))]=1-1e-5
@@ -206,19 +206,19 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		#avCount=sweep(Lambda,2,lib.size,"*")
 		#expectedLoss=avCount*zeroProbMat
 		#libSizeCountSim = lib.size + colSums(expectedLoss)
-		
+
 		## adjust mu for adding zeroes
 		mu=sweep(Lambda,2,lib.size,"*")
 		mu[mu<1e-16] = 1
 		adjustment = zeroProbMat*mu
 		mu=mu+adjustment
-		
+
 		## simulate counts acc to a zero-adjusted NB model
 		#mu=sweep(Lambda,2,libSizeCountSim,"*")
 		#mu[mu<1e-16] = 0.5
 		counts = rZANBI(n=nTags*nlibs, mu=mu, sigma=Dispersion, nu=zeroProbMat)
 
-		## the rZANBI function rarely simulates Inf values for very low mu estimates. Resimulate for these genes using same params, if present	
+		## the rZANBI function rarely simulates Inf values for very low mu estimates. Resimulate for these genes using same params, if present
 		## also, resample features with all zero counts
 		zeroCountsId <- which(rowSums(counts)==0)
 		infId <- which(apply(counts,1,function(row) any(is.infinite(row))))
@@ -232,38 +232,38 @@ NBsimSingleCell <- function(dataset, group, nTags = 10000, nlibs = length(group)
 		    zeroCountsId <- which(rowSums(counts)==0)
 		    infId <- which(apply(counts,1,function(row) any(is.infinite(row))))
 		}
-		
+
 		rownames(counts) <- paste("ids", 1:nTags, sep = "")
 		object$counts <- counts
 		object
 	}
-			
-        if(verbose) message("Preparing dataset.\n")	
-	  if(is.null(params)){ 
+
+        if(verbose) message("Preparing dataset.\n")
+	  if(is.null(params)){
 	      dataset <- getDatasetZTNB(counts = dataset, drop.extreme.dispersion = drop.extreme.dispersion, drop.low.lambda = drop.low.lambda)
 	  } else {
 	  dataset <- params
 	  }
 	  dat <- new("DGEList", list(dataset = dataset, nTags = nTags, lib.size = lib.size, nlibs = nlibs, group = group, design = model.matrix(~group), pUp = pUp, foldDiff = foldDiff))
 	if(cpm=="aCpm") dat$dataset$dataset.AveLogCPM = dat$dataset$dataset.aCpm
-	
+
 
 	if(is.null(dat$lib.size)){
 	  dat$lib.size <- sample(dataset$dataset.lib.size, nlibs, replace=TRUE)}
-	if(is.null(nTags)) dat$nTags <- dat$dataset$dataset.nTags 
-        if(verbose) message("Sampling.\n")	
+	if(is.null(nTags)) dat$nTags <- dat$dataset$dataset.nTags
+        if(verbose) message("Sampling.\n")
 	      dat <- sample.fun(dat)
-        if(verbose) message("Calculating differential expression.\n")	
+        if(verbose) message("Calculating differential expression.\n")
 	      dat <- diff.fun(dat)
-        if(verbose) message("Simulating data.\n")	
+        if(verbose) message("Simulating data.\n")
 	      dat <- sim.fun(dat)
-	dat 	
+	dat
 }
 
 
 NBsimFold <-
 function(fold_seq = seq(1, 3, by = 0.25), dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = NA, lib.size = NULL, drop.low.lambda = TRUE, drop.extreme.dispersion = 0.1,  add.outlier = FALSE, outlierMech = c("S", "R", "M"), pOutlier = 0.1, min.factor = 1.5, max.factor = 8, pDiff=.1, pUp=.5, name = NULL)
-{  
+{
     ## NBsimFold generates a series of simulated counts followed by the NB model ##
 	o <- order(fold_seq)
 	fold_seq <- fold_seq[o]
@@ -279,14 +279,14 @@ function(fold_seq = seq(1, 3, by = 0.25), dataset, group, nTags = 10000, nlibs =
 			if(identical(out[[what]][[1L]], out[[what]][[2L]]))
 			out[[what]] <- out[[what]][[1L]]}
 		out}
-	
+
 	rere_split <- function(object, x)
 	{ object[[x]] <- re_split(object[[x]])
 	  object}
-		
-	
+
+
 	simFold <- lapply(fold_seq, function(x) NBsim(foldDiff = x, dataset = dataset, group = group, nTags = nTags, nlibs = nlibs, fix.dispersion = fix.dispersion, lib.size = lib.size, drop.low.lambda = drop.low.lambda, drop.extreme.dispersion = drop.extreme.dispersion,  add.outlier = add.outlier, outlierMech = outlierMech, pOutlier = pOutlier, min.factor = min.factor, max.factor = max.factor, pDiff = pDiff, pUp=pUp, name = name))
-	
+
     simFold <- re_split(simFold)
     for(i in seq_along(outlierMech))
        simFold <- rere_split(simFold, outlierMech[i])
@@ -300,28 +300,28 @@ getVersion <-
 function(x)
 {
   ## it is low-level function of pval ##
-  x1 <- gsub("(\\_)(\\w+)", "", x)	
+  x1 <- gsub("(\\_)(\\w+)", "", x)
   v <- unlist(lapply(x1, function(z) {options(warn = -1)
                                       desp<- packageDescription(z)
                                       if(length(desp) == 1)
                                         return("unknown")
                                       else desp$Version
                                       }))
-  paste0(x,"_", v )	
-}	
+  paste0(x,"_", v )
+}
 
 rmVersion <-
 function(x)
 {
  ## it is low-level function of pval ##
  x1 <- strsplit(x, "\\_")
- x1 <- lapply(x1, function(x) x[-length(x)])	
- sapply(x1, paste0, collapse = "_")	
-	
+ x1 <- lapply(x1, function(x) x[-length(x)])
+ sapply(x1, paste0, collapse = "_")
+
 }
 
-odd <- function(x) 
-{   
+odd <- function(x)
+{
 	## it is low-level function of pval ##
 	y <- seq(x)
 	idx <- y %% 2 != 0
@@ -330,7 +330,7 @@ odd <- function(x)
 
 mainShow <-
 function(count.type, count.name, group, pOutlier)
-{ 
+{
 	## it is low-level function of pval ##
 	pOutlier <- paste(100*pOutlier, "% ", "outliers", sep = "")
 	group <- as.factor(group)
@@ -339,7 +339,7 @@ function(count.type, count.name, group, pOutlier)
 	paste0("No outliers", "/", count.name, "/", group)
 	else
 	paste0(pOutlier, "/", count.type, "/",  count.name, "/", group)
-	
+
 }
 
 
@@ -354,7 +354,7 @@ resetPar <- function() {
 
 DESeq2.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
-  {   
+  {
       ## implement DESeq2 ##
 	  library(DESeq2)
 	  colData <- data.frame(group)
@@ -371,7 +371,7 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 
 DESeq2_poscounts.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
-  {   
+  {
       ## implement DESeq2 ##
 	  library(DESeq2)
 	  colData <- data.frame(group)
@@ -386,9 +386,79 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
       out
 }
 
+DESeq2_noShrink.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse = estimateSizeFactors(dse)
+	  dse = estimateDispersions(dse)
+	  dse = nbinomWaldTest(dse, betaPrior=FALSE)
+	  res <- results(dse)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+          out
+}
+
+DESeq2_noFiltering.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse = estimateSizeFactors(dse)
+	  dse = estimateDispersions(dse)
+	  dse = nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse, independentFiltering=FALSE)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+          out
+}
+
+DESeq2_poscounts_noShrink.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse <- estimateSizeFactors(dse,type="poscounts")
+	  dse <- estimateDispersions(dse)
+	  dse <- nbinomWaldTest(dse, betaPrior=FALSE)
+	  res <- results(dse)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
+}
+
+DESeq2_poscounts_noFiltering.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse <- estimateSizeFactors(dse,type="poscounts")
+	  dse <- estimateDispersions(dse)
+	  dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse, independentFiltering=FALSE)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
+}
+
+
+
 DESeq2_weightedT.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL, weights)
-  {   
+  {
       ## implement DESeq2 ##
 	  library(DESeq2)
 	  colData <- data.frame(group)
@@ -411,7 +481,7 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL, weights)
 
 DESeq2Zero_adjustedDf_posCountsNormZeroWeights.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
-  {   
+  {
       ## implement DESeq2 ##
 	  library(DESeq2) ; library(genefilter)
 	  colData <- data.frame(group)
@@ -434,7 +504,7 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 
 DESeq2Zero_wald_posCountsNormZeroWeights.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
-  {   
+  {
       ## implement DESeq2 ##
 	  library(DESeq2) ; library(genefilter)
 	  colData <- data.frame(group)
@@ -562,12 +632,12 @@ function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
 
 edgeR_robust.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
-{   
+{
     ## edgeR-robsut pipeline ##
 	library(edgeR)
 	d <- DGEList(counts = counts, group = group )
 	d <- edgeR::calcNormFactors(d)
- 	design = model.matrix(~group)	
+ 	design = model.matrix(~group)
 	dw <- estimateGLMRobustDisp(d,design=design, prior.df=prior.df, maxit = 6)
 	fw <- glmFit(dw, design=design)
 	lrw <- glmLRT(fw,coef=2)
@@ -578,8 +648,8 @@ function(counts, group, design = NULL, mc.cores = 4, prior.df=10, niter=NULL)
 }
 
 limma_voom.pfun <-
-function(counts, group, design = NULL, mc.cores = 2, niter=NULL) 
-{   
+function(counts, group, design = NULL, mc.cores = 2, niter=NULL)
+{
 	## limma voom pipeline ##
 	library(limma)
  	design = model.matrix(~group)
@@ -595,8 +665,8 @@ function(counts, group, design = NULL, mc.cores = 2, niter=NULL)
 }
 
 limma_voomFiltered.pfun <-
-function(counts, group, design = NULL, mc.cores = 2, niter=NULL) 
-{   
+function(counts, group, design = NULL, mc.cores = 2, niter=NULL)
+{
 	## limma voom pipeline ##
 	library(limma) ; library(genefilter)
  	design = model.matrix(~group)
@@ -616,8 +686,8 @@ function(counts, group, design = NULL, mc.cores = 2, niter=NULL)
 
 
 limma_voomZeroFiltered.pfun <-
-function(counts, group, design = NULL, mc.cores = 2, niter=100) 
-{   
+function(counts, group, design = NULL, mc.cores = 2, niter=100)
+{
 	## limma voom pipeline ##
 	library(limma) ; library(genefilter)
  	design = model.matrix(~group)
@@ -639,7 +709,7 @@ function(counts, group, design = NULL, mc.cores = 2, niter=100)
 
 zeroWeightsLibSizeDispFast <- function(counts, design, initialWeightAt0=TRUE, maxit=100, plot=FALSE, plotW=FALSE, designZI=NULL, llTol=1e-4, normalization="TMM"){
     require(edgeR) ; require(DESeq2)
-    if(plot | plotW) par(mfrow=c(1,plot+plotW))    
+    if(plot | plotW) par(mfrow=c(1,plot+plotW))
     counts <- DGEList(counts)
     #counts <- edgeR::calcNormFactors(counts)
     if(normalization=="TMM"){
@@ -659,7 +729,7 @@ zeroWeightsLibSizeDispFast <- function(counts, design, initialWeightAt0=TRUE, ma
     w <- matrix(1,nrow=nrow(counts),ncol=ncol(counts), dimnames=list(c(1:nrow(counts)), NULL))
       ## starting values based on P(zero) in the library
     for(k in 1:ncol(w)) w[counts$counts[,k]==0,k] <- 1-mean(counts$counts[,k]==0)
-    
+
     llOld <- matrix(-1e4,nrow=nrow(counts),ncol=ncol(counts))
     likCOld <- matrix(0,nrow=nrow(counts),ncol=ncol(counts))
     converged=FALSE
@@ -667,9 +737,9 @@ zeroWeightsLibSizeDispFast <- function(counts, design, initialWeightAt0=TRUE, ma
 
     for(i in 1:maxit){
 	j=j+1
-        zeroId <- counts$counts==0	
+        zeroId <- counts$counts==0
 	counts$weights <- w
-	
+
 	### M-step counts
 	#only estimate dispersions every 5 iterations
 	#if(i==1 | is.wholenumber(i/10)){
@@ -678,18 +748,18 @@ zeroWeightsLibSizeDispFast <- function(counts, design, initialWeightAt0=TRUE, ma
 	#counts <- estimateGLMTagwiseDisp(counts, design, prior.df=0, min.row.sum=1)
 	counts <- estimateDisp(counts, design, prior.df=0, min.row.sum=1)
 	}
-	if(plot) plotBCV(counts)	
+	if(plot) plotBCV(counts)
 	fit <- glmFit(counts, design)
 	likC <- dnbinom(counts$counts, mu=fit$fitted.values, size=1/counts$tagwise.dispersion)
-	
+
 	### M-step mixture parameter: model zero probability
 	successes <- colSums(1-w) #P(zero)
 	failures <- colSums(w) #1-P(zero)
 	if(is.null(designZI)){
 	zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")} else{
 	zeroFit <- glm(cbind(successes,failures) ~-1+designZI, family="binomial")}
-	pi0Hat <- predict(zeroFit,type="response") 
-	
+	pi0Hat <- predict(zeroFit,type="response")
+
 	## E-step: Given estimated parameters, calculate expected value of weights
 	pi0HatMat <- expandAsMatrix(pi0Hat,dim=dim(counts),byrow=TRUE)
 	w <- 1-pi0HatMat*zeroId/(pi0HatMat*zeroId+(1-pi0HatMat)*likC*zeroId+1e-15)
@@ -702,10 +772,10 @@ zeroWeightsLibSizeDispFast <- function(counts, design, initialWeightAt0=TRUE, ma
 	if(mean(abs(delta) < llTol)>.999){ #if 99.9% has converged
 	    if(j==1 & mean(abs(delta) < llTol)>.999){ #final convergence?
 	    	cat(paste0("converged. \n")) ; return(w)}
-	    j=0 
+	    j=0
 	    converged=TRUE} else {converged=FALSE}
 	cat(paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol),"\n"))
-	if(plotW) hist(w[zeroId],main=paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol)))	
+	if(plotW) hist(w[zeroId],main=paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol)))
     }
     return(w)
 }
@@ -726,7 +796,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
     # do filtering using genefilter
     stopifnot(length(theta) > 1)
     filtPadj <- filtered_p(filter=filter, test=pValue,
-                           theta=theta, method=pAdjustMethod) 
+                           theta=theta, method=pAdjustMethod)
     numRej  <- colSums(filtPadj < alpha, na.rm = TRUE)
     # prevent over-aggressive filtering when all genes are null,
     # by requiring the max number of rejections is above a fitted curve.
@@ -735,7 +805,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
     lo.fit <- lowess(numRej ~ theta, f=1/5)
     if (max(numRej) <= 10) {
       j <- 1
-    } else { 
+    } else {
       residual <- if (all(numRej==0)) {
         0
       } else {
@@ -745,7 +815,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
       j <- if (any(numRej > thresh)) {
         which(numRej > thresh)[1]
       } else {
-        1  
+        1
       }
     }
     padj <- filtPadj[, j, drop=TRUE]
@@ -783,7 +853,7 @@ scde.pfun <- function(counts, group, design=NULL, mc.cores=1, niter=NULL){
     counts = matrix(as.integer(counts),nrow=nrow(counts),ncol=ncol(counts))
     if(is.null(colnames(counts))) colnames(counts)=paste0("sample",1:ncol(counts))
     require(scde)
-    
+
     # calculate error models
     o.ifm <- scde.error.models(counts = counts, groups = group, n.cores = mc.cores, threshold.segmentation = TRUE, save.crossfit.plots = FALSE, save.model.plots = FALSE, verbose = 0)
     # estimate gene expression prior
@@ -792,7 +862,7 @@ scde.pfun <- function(counts, group, design=NULL, mc.cores=1, niter=NULL){
     ediff <- scde.expression.difference(o.ifm, counts, o.prior, groups  =  group, n.randomizations  =  150, n.cores  =  mc.cores, verbose  =  0)
     lfc <- ediff$mle
     pval=(1-pnorm(abs(ediff$Z)))*2
-    padj=(1-pnorm(abs(ediff$cZ)))*2 
+    padj=(1-pnorm(abs(ediff$cZ)))*2
     out = cbind(pval,padj,lfc)
     return(out)
 }
@@ -807,8 +877,8 @@ MAST.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
     CD <- cData(sca)
     CD$ngeneson <- ngeneson
     CD$cngeneson <- CD$ngeneson-mean(ngeneson)
-    cData(sca) <- CD  
-    ## differential expression 
+    cData(sca) <- CD
+    ## differential expression
     fit <- zlm.SingleCellAssay(~cngeneson+group,sca=sca,method="bayesglm",ebayes=TRUE)
     L=matrix(0,nrow=ncol(coef(fit,"D")))
     rownames(L)=colnames(coef(fit,"D"))
@@ -853,7 +923,7 @@ NODES.pfun <- function(counts, group, design=NULL, mc.cores=2, niter=NULL){
 	return(out)
 }
 
-getDataset <- function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda = TRUE) {  
+getDataset <- function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda = TRUE) {
 ## this function generates NB parameters from real dataset ##
 ## it is low-level function of NBsim ##
 	d <- DGEList(counts)
@@ -869,7 +939,7 @@ getDataset <- function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda = 
 	dispersion <- d$tagwise.dispersion
 	AveLogCPM <- d$AveLogCPM
 	if(is.numeric(drop.extreme.dispersion))
-	{   
+	{
 		bad <- quantile(dispersion, 1-drop.extreme.dispersion, names = FALSE)
 		ids <- dispersion <= bad
 		AveLogCPM <- AveLogCPM[ids]
@@ -887,20 +957,20 @@ getDataset <- function(counts, drop.extreme.dispersion = 0.1, drop.low.lambda = 
 NBsim <-
 function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = NA, lib.size = NULL, drop.low.lambda = TRUE, drop.extreme.dispersion = 0.1,  add.outlier = FALSE, outlierMech = c("S", "R", "M"), pOutlier = 0.1, min.factor = 1.5, max.factor = 10, pDiff=.1, pUp=.5, foldDiff=3, name = NULL, save.file = FALSE, file = NULL, only.add.outlier = FALSE, verbose=TRUE, ind=NULL)
 
-{   
-## NBsim generate simulated count from the real dataset followed by the NB model ##		
+{
+## NBsim generate simulated count from the real dataset followed by the NB model ##
 	require(edgeR)
 	group = as.factor(group)
 
 	sample.fun <- function(object)
 	{
 		## it is low-level function of NBsim ##
-        ## it samples from the real dataset ## 
+        ## it samples from the real dataset ##
 		nlibs <- object$nlibs
 		nTags <- object$nTags
 		AveLogCPM <-object$dataset$dataset.AveLogCPM
 		dispersion <- object$dataset$dataset.dispersion
-		
+
                 id_r <- sample(length(AveLogCPM), nTags, replace = TRUE)
 		object$AveLogCPM <- AveLogCPM[id_r] #added by Koen to use for adding zeroes
 		Lambda <- 2^(AveLogCPM[id_r])
@@ -916,16 +986,16 @@ function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = 
 		else Dispersion <- expandAsMatrix(Dispersion, dim = c(nTags, nlibs))
 		object$Dispersion <- Dispersion
 		object
-		
+
 	}
 	diff.fun <- function(object)
-	{ 
-		
+	{
+
         ## it is low-level function of NBsim ##
-        ## it creates diff genes according to foldDiff ## 
+        ## it creates diff genes according to foldDiff ##
 		group <- object$group
 		pDiff <- object$pDiff
-		pUp <-  object$pUp 
+		pUp <-  object$pUp
 		foldDiff <- object$foldDiff
 		Lambda <- object$Lambda
 		nTags <- object$nTags
@@ -936,7 +1006,7 @@ function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = 
 		if(length(ind)>0 & !mean(foldDiff==1)==1 ) {
 			fcDir <- sample(c(-1,1), length(ind), prob=c(1-pUp,pUp), replace=TRUE)
 			Lambda[ind,g] <- Lambda[ind,g]*exp(log(foldDiff)/2*fcDir)
-			Lambda[ind,!g] <- Lambda[ind,!g]*exp(log(foldDiff)/2*(-fcDir)) 
+			Lambda[ind,!g] <- Lambda[ind,!g]*exp(log(foldDiff)/2*(-fcDir))
             #Lambda <- t(t(Lambda)/colSums(Lambda))
 			object$Lambda <- Lambda
 			object$indDE <- ind
@@ -953,44 +1023,44 @@ function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = 
 		object
 	}
 	sim.fun <- function(object)
-	{   
+	{
         ## it is low-level function of NBsim ##
-        ## it simulate counts using rnbinom ## 
+        ## it simulate counts using rnbinom ##
 		Lambda <- object$Lambda
 		Dispersion <- object$Dispersion
 		nTags <- object$nTags
 		nlibs <- object$nlibs
 		lib.size <- object$lib.size
-		counts <- matrix(rnbinom(nTags*nlibs, mu = t(t(Lambda)*lib.size), size = 1/Dispersion), nrow = nTags, ncol = nlibs) 
+		counts <- matrix(rnbinom(nTags*nlibs, mu = t(t(Lambda)*lib.size), size = 1/Dispersion), nrow = nTags, ncol = nlibs)
 		rownames(counts) <- paste("ids", 1:nTags, sep = "")
 		object$counts <- counts
 		object
 	}
-			
+
 	outlier.fun <- function(object, outlierMech, pOutlier, min.factor = 2, max.factor = 5)
-        {   
+        {
         ## it is low-level function of NBsim ##
-        ## it makes outlier ## 
+        ## it makes outlier ##
 	        outlierMech <- match.arg(outlierMech, c("S", "M", "R"))
 	        dim <- dim(object$counts)
                 outlier.factor <- function() runif(1, min.factor, max.factor)
                 countAddOut <- object$counts
                 LambdaAddOut <- object$Lambda
-	        DispersionAddOut <- object$Dispersion	
-	        switch(outlierMech, 
+	        DispersionAddOut <- object$Dispersion
+	        switch(outlierMech,
 	               S = {
 	                    mask_outlier <- expandAsMatrix(FALSE, dim = dim)
 	                    id_r <- which(runif(dim[1]) < pOutlier)
 	                    id_c <- sample(dim[2], length(id_r), replace = TRUE)
-		            for(i in seq(id_r)) 
+		            for(i in seq(id_r))
 		                   mask_outlier[id_r[i], id_c[i]] <- TRUE
                             countAddOut[mask_outlier] <- sapply(countAddOut[mask_outlier], function(z) round(z*outlier.factor()))
-                            }, 
-	               R = {				   
+                            },
+	               R = {
                             mask_outlier <- matrix(runif(dim[1]*dim[2]) < pOutlier, dim[1], dim[2])
                             countAddOut[mask_outlier] <- sapply(countAddOut[mask_outlier], function(z) round(z*outlier.factor()))
                             },
-         
+
 	               M = {
                             mask_outlier <- matrix(runif(dim[1]*dim[2]) < pOutlier, dim[1], dim[2])
                             LambdaAddOut[mask_outlier] <- sapply(LambdaAddOut[mask_outlier], function(z) z*outlier.factor())
@@ -1010,40 +1080,40 @@ function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = 
 	                if(any(o))
 	                {
                               indDEupOutlier <- indDEupOutlier[!o]
-		              indDEbothOutlier <- indDEupOutlier[o]	
-	                      indDEdownOutlier <- indDEdownOutlier[!q]	
-	                }	
+		              indDEbothOutlier <- indDEupOutlier[o]
+	                      indDEdownOutlier <- indDEdownOutlier[!q]
+	                }
 	         }
 	         else
 	         {
                         indDEupOutlier <- indDEdownOutlier <- indDEnoOutlier <- indNonDEOutlier <- indNonDEnoOutlier <- indDEbothOutlier <- NA
                  }
-	             out <- list(countAddOut = countAddOut, outlierMech = outlierMech, pOutlier = pOutlier, mask_outlier = mask_outlier, indDEupOutlier = indDEupOutlier, 
-                                 indDEdownOutlier = indDEdownOutlier, indDEbothOutlier = indDEbothOutlier, indDEnoOutlier = indDEnoOutlier, indNonDEOutlier = indNonDEOutlier, 
-                                 indNonDEnoOutlier = indNonDEnoOutlier, LambdaAddOut = LambdaAddOut, DispersionAddOut = DispersionAddOut) 
+	             out <- list(countAddOut = countAddOut, outlierMech = outlierMech, pOutlier = pOutlier, mask_outlier = mask_outlier, indDEupOutlier = indDEupOutlier,
+                                 indDEdownOutlier = indDEdownOutlier, indDEbothOutlier = indDEbothOutlier, indDEnoOutlier = indDEnoOutlier, indNonDEOutlier = indNonDEOutlier,
+                                 indNonDEnoOutlier = indNonDEnoOutlier, LambdaAddOut = LambdaAddOut, DispersionAddOut = DispersionAddOut)
 
         }
-	
+
 	calProb <- function(x, l) round(1 -(1 - x)^(1/l), 2) ## calculate probability to make sure all the outlierMech produce the same amount of outliers ##
 	##### hlp = as.matrix(islamFilt)
 
-        if(verbose) message("Preparing dataset.\n")	
+        if(verbose) message("Preparing dataset.\n")
 	if(class(dataset) == "DGEList")
-	{   
+	{
 		dat <- dataset
 		dat[["R"]] <- dat[["S"]] <- dat[["M"]] <- dat[["pOutlier"]] <- dat[["outlierMech"]]<- NULL
 	}
-	else if(is.character(dataset)) 
+	else if(is.character(dataset))
 	{
 		load(dataset)
 		dat <- get(gsub("(\\.)(\\w+)", "", basename(dataset)))
 		dat[["R"]] <- dat[["S"]] <- dat[["M"]] <- dat[["pOutlier"]] <- dat[["outlierMech"]]<- NULL
 	}
-	else if(is.matrix(dataset)) 
-	{ 
-	  if(is.null(name)) name <- deparse(substitute(dataset))	
+	else if(is.matrix(dataset))
+	{
+	  if(is.null(name)) name <- deparse(substitute(dataset))
 	  dataset <- getDataset(counts =dataset, drop.extreme.dispersion = drop.extreme.dispersion, drop.low.lambda = drop.low.lambda)
-	  dat <- new("DGEList", list(dataset = dataset, nTags = nTags, lib.size = lib.size, nlibs = nlibs, group = group, design = model.matrix(~group), pDiff= pDiff, pUp = pUp, foldDiff = foldDiff, outlierMech = outlierMech, min.factor = min.factor, max.factor = max.factor, name = name))		
+	  dat <- new("DGEList", list(dataset = dataset, nTags = nTags, lib.size = lib.size, nlibs = nlibs, group = group, design = model.matrix(~group), pDiff= pDiff, pUp = pUp, foldDiff = foldDiff, outlierMech = outlierMech, min.factor = min.factor, max.factor = max.factor, name = name))
 	}
 	else
 	dat <- new("DGEList", list(dataset = dataset, nTags = nTags, lib.size = lib.size, nlibs = nlibs, group = group, design = model.matrix(~group), pDiff= pDiff, pUp = pUp, foldDiff = foldDiff, outlierMech = outlierMech, min.factor = min.factor, max.factor = max.factor, name = name))
@@ -1053,49 +1123,49 @@ function(dataset, group, nTags = 10000, nlibs = length(group), fix.dispersion = 
 		if(is.null(lib.size)){
 		    dat$lib.size <- runif(nlibs, min = 0.7*median(dat$dataset$dataset.lib.size), max = 1.3*median(dat$dataset$dataset.lib.size))
 		    #propZeroFit=dat$dataset.propZeroFit
-	
+
 		}
 	    if(is.null(nTags))
-	      dat$nTags <- dat$dataset$dataset.nTags 
-        if(verbose) message("Sampling.\n")	
+	      dat$nTags <- dat$dataset$dataset.nTags
+        if(verbose) message("Sampling.\n")
 	      dat <- sample.fun(dat)
-        if(verbose) message("Calculating differential expression.\n")	
+        if(verbose) message("Calculating differential expression.\n")
 	      dat <- diff.fun(dat)
-        if(verbose) message("Simulating data.\n")	
+        if(verbose) message("Simulating data.\n")
 	      dat <- sim.fun(dat)
 	}
 	if(add.outlier){
 		outlierMech <- match.arg(outlierMech,  c("S", "R", "M"), several.ok = TRUE)
 		if(length(pOutlier)== 1 & length(outlierMech) > 1 & any(outlierMech == "S"))
-		{ 
-			prob <- calProb(pOutlier, length(group))	
+		{
+			prob <- calProb(pOutlier, length(group))
 			pOutlier <- rep(pOutlier, length = length(outlierMech))
-			pOutlier[!outlierMech == "S"] <- prob	
+			pOutlier[!outlierMech == "S"] <- prob
 		}
 		else if(!length(pOutlier) == length(outlierMech))
 		stop("pOutlier is not equal to outlierMech")
-                if(verbose) message("Adding outliers.\n")	
+                if(verbose) message("Adding outliers.\n")
 		dat[outlierMech] <- mapply(function(x, y) outlier.fun(dat, outlierMech = x, pOutlier = y, min.factor = min.factor, max.factor = max.factor), x = outlierMech, y = pOutlier, SIMPLIFY = FALSE)
 	    dat$pOutlier <- pOutlier
 	}
 	if(save.file)
-	{ 
-		
+	{
+
 		## save file for shiny app ##
 		if(verbose) message("Saving file.\n")
-		if(is.null(file)) 
+		if(is.null(file))
 		{ g <- paste0("g", sum(levels(group)[1] == group), "v", sum(levels(group)[2] == group))
 			f <- paste0("f", foldDiff)
-			if(add.outlier) o <- paste0("o", sprintf( "%02d",100*pOutlier[1L])) 
-			else o <- paste0("o", sprintf( "%02d", 0 ))  
+			if(add.outlier) o <- paste0("o", sprintf( "%02d",100*pOutlier[1L]))
+			else o <- paste0("o", sprintf( "%02d", 0 ))
 			file <- paste0(dat$name, "/", g, f, o, ".Rdata")
-			dir.create(dat$name, showWarnings = FALSE)  
+			dir.create(dat$name, showWarnings = FALSE)
 		}
 		filenm <- eval(gsub("(\\.)(\\w+)", "", basename(file)))
 		assign(filenm, dat)
-		save(list = filenm, file = file)		
+		save(list = filenm, file = file)
 	}
-	dat 	
+	dat
 }
 
 
@@ -1107,7 +1177,7 @@ function(y, ...) ## evaluate DE methods ##
 UseMethod("pval")
 pval.default <-
 function(y, group, design = NULL, method = "edgeR", mc.cores = 4, globalEnvir = FALSE, niter=NULL, ...)
-{   
+{
 	## evaluate DE methods ##
     ## return to a list of pvalue and runing time ##
     ## pvalue contains pvalue and p-adjust value ##
@@ -1124,7 +1194,7 @@ function(y, group, design = NULL, method = "edgeR", mc.cores = 4, globalEnvir = 
 		pvalue <- with(e, eval(p))
 		try(rm(list = names(L), envir = e),  silent = TRUE)
 		try(rm(pGlobal, envir = e),  silent = TRUE)
-	}	
+	}
 	else pvalue <- p(y, group, design, mc.cores, niter, ...)
 	pvalue
 	new.time <- proc.time()
@@ -1135,13 +1205,13 @@ function(y, group, design = NULL, method = "edgeR", mc.cores = 4, globalEnvir = 
 
 pval.DGEList <-
 function(y, method, mc.cores = 4, parallel.method = c("baySeq"), globalEnvir.method = c("ShrinkBayes"), save.file = FALSE, name = deparse(substitute(y)), count.type="counts", niter=NULL)
-{   
+{
 	## evaluate DE methods ##
-    ## return to a DGEList including pvalue and other necessary indexs for re-analysis and plot ## 
-	library(parallel)	   
+    ## return to a DGEList including pvalue and other necessary indexs for re-analysis and plot ##
+	library(parallel)
 	counts = y$counts
 	 pOutlier = mask_outlier = indDEupOutlier = indDEdownOutlier = indDEbothOutlier = indDEnoOutlier = indNonDEOutlier = indNonDEnoOutlier = NA
-	names(method) <- method 
+	names(method) <- method
 	group <- y$group
 	design <- y$design
 	is.parallel <- method %in% parallel.method
@@ -1155,7 +1225,7 @@ function(y, method, mc.cores = 4, parallel.method = c("baySeq"), globalEnvir.met
          output[[i]] <- pval(y = counts, group = group, design = design, method = i, mc.cores = mc.cores, niter=niter)
 	}
 	if(any(is.globalEnvir))
-	{  		
+	{
 		for( i in names(method[is.globalEnvir]))
 		output[[i]] <- pval(y = counts, group = group, design = design, method = i, mc.cores = mc.cores, globalEnvir = TRUE, niter=niter)
 	}
@@ -1164,7 +1234,7 @@ function(y, method, mc.cores = 4, parallel.method = c("baySeq"), globalEnvir.met
 	pval <- lapply(output, function(x) x[["pvalue"]][, "pval"])
 	lfc <- lapply(output, function(x) x[["pvalue"]][, "lfc"])
         time <- lapply(output, function(x) x[["time"]])
-	output <- new("DGEList", list(pval = pval, padj = padj, lfc = lfc,  counts = counts, group = group, design = design, indDE = y$indDE, method = names(method), indDEupOutlier = indDEupOutlier, indDEdownOutlier = indDEdownOutlier, indDEbothOutlier = indDEbothOutlier, indDEnoOutlier = indDEnoOutlier, indNonDEOutlier = indNonDEOutlier, indNonDEnoOutlier = indNonDEnoOutlier, time = time)) 
+	output <- new("DGEList", list(pval = pval, padj = padj, lfc = lfc,  counts = counts, group = group, design = design, indDE = y$indDE, method = names(method), indDEupOutlier = indDEupOutlier, indDEdownOutlier = indDEdownOutlier, indDEbothOutlier = indDEbothOutlier, indDEnoOutlier = indDEnoOutlier, indNonDEOutlier = indNonDEOutlier, indNonDEnoOutlier = indNonDEnoOutlier, time = time))
 	output$main <- mainShow(count.name = y$name, group = group, pOutlier = pOutlier, count.type=count.type)
 	output$methodVersion <- getVersion(method)
 	output
@@ -1172,7 +1242,7 @@ function(y, method, mc.cores = 4, parallel.method = c("baySeq"), globalEnvir.met
 
 pval.character <-
 function(y, method, count.type = "counts", mc.cores = 6, parallel.method = c("baySeq"), globalEnvir.method = c("ShrinkBayes"), save.file = FALSE, niter=NULL)
-{   
+{
     ## for shiny app ##
 	fnm <- y
 	load(y)
@@ -1182,31 +1252,31 @@ function(y, method, count.type = "counts", mc.cores = 6, parallel.method = c("ba
 }
 pval.FoldList <-
 function(y, method, count.type = "counts", mc.cores = 6, parallel.method = c("baySeq"), globalEnvir.method = c("ShrinkBayes"), cut.computing = TRUE)
-{   
+{
     ## evaluate DE methods for FoldList ##
 	library(parallel)
 	count.type <- match.arg(count.type, c("counts", "S", "R", "M"))
-	if(count.type == "counts") 
+	if(count.type == "counts")
 	{counts = y$counts
 		pOutlier = mask_outlier = indDEupOutlier = indDEdownOutlier = indDEbothOutlier = indDEnoOutlier = indNonDEOutlier = indNonDEnoOutlier = NA}
-	else 
+	else
 	{counts = y[[count.type]]$countAddOut
 		pOutlier = y[[count.type]]$pOutlier
 		mask_outlier = y[[count.type]]$mask_outlier
 		indDEupOutlier = y[[count.type]]$indDEupOutlier
 		indDEdownOutlier = y[[count.type]]$indDEdownOutlier
-		indDEbothOutlier = y[[count.type]]$indDEbothOutlier	
+		indDEbothOutlier = y[[count.type]]$indDEbothOutlier
 		indDEnoOutlier = y[[count.type]]$indDEnoOutlier
 		indNonDEnoOutlier = y[[count.type]]$indNonDEnoOutlier
 		indNonDEOutlier = y[[count.type]]$indNonDEOutlier}
-	
-	names(method) <- method 
+
+	names(method) <- method
 	group <- y$group
 	design <- y$design
 	is.parallel <- method %in% parallel.method
 	is.globalEnvir <- method %in% globalEnvir.method
 	id.re <- !(is.parallel|is.globalEnvir)
-	reduced.method <- method[id.re] 
+	reduced.method <- method[id.re]
 	if(any(id.re)) output <- lapply(reduced.method, function(x) parallel:::mclapply(counts, function(w) pval(y = w, method = x, group = group, design = design), mc.cores = mc.cores))
 	else output <- list()
 	fold_seq <- fold_seq.keep <- y$fold_seq
@@ -1214,33 +1284,33 @@ function(y, method, count.type = "counts", mc.cores = 6, parallel.method = c("ba
 	if(any(is.parallel))
 	{
 		for(j in fold_seq)
-		{ 
+		{
 		  is.keep <- j %in% fold_seq.keep
 		  for( i in names(method[is.parallel]))
 			{
 				if(any(is.keep)) output[[i]][[j]] <- pval(y = counts[[j]], group = group, design = design, method = i, mc.cores = mc.cores)
-				else 
+				else
 				{
 					output[[i]][[j]][["pavlue"]] <- cbind(pval = NA, padj = NA)
 					output[[i]][[j]][["time"]] <- NA
 				}
-			}	
+			}
 		}
 	}
 	if(any(is.globalEnvir))
 	{
 		for(j in fold_seq)
-		{ 
+		{
 			is.keep <- j %in% fold_seq.keep
 			for( i in names(method[is.globalEnvir]))
 			{
 				if(any(is.keep)) output[[i]][[j]] <- pval(y = counts[[j]], group = group, design = design, method = i, mc.cores = mc.cores, globalEnvir = TRUE)
-				else 
+				else
 				{
 					output[[i]][[j]][["pavlue"]] <- cbind(pval = NA, padj = NA)
 					output[[i]][[j]][["time"]] <- NA
 				}
-			}	
+			}
 		}
 	}
 	output <- output[method]
@@ -1253,13 +1323,13 @@ function(y, method, count.type = "counts", mc.cores = 6, parallel.method = c("ba
 	output
 }
 getPvalVersion <- function(methodVersion, pout = "pval", count.type = "counts", datanm)
-{ 
+{
   ## for shiny app ##
   Type <- switch(count.type, counts = "b", S = "s", M = "m", R = "r")
   filenm <- paste0(pout, "_", Type, "_",  basename(datanm), "_", methodVersion, ".Rdata")
   load(paste0(dirname(datanm),"/", rmVersion(methodVersion),"/", filenm))
-  get(methodVersion)	   
-}	
+  get(methodVersion)
+}
 getPval <- function(dataset,methodVersion, count.type = c("counts", "S", "R", "M"))
 {
     ## for shiny app ##
@@ -1268,7 +1338,7 @@ getPval <- function(dataset,methodVersion, count.type = c("counts", "S", "R", "M
 	dat <- get(basename(datanm))
 	count.type <- match.arg(count.type, c("counts", "S", "R", "M"))
 	if(count.type == "counts") Dat <- new("DGEList", dat)
-	else 
+	else
 	{
 		Dat <- new("DGEList", dat[[count.type]])
 		Dat[["counts"]] <- Dat[["countAddOut"]]
@@ -1287,10 +1357,10 @@ getPval <- function(dataset,methodVersion, count.type = c("counts", "S", "R", "M
 	names(methodVersion) <- methodVersion
 	Dat[["padj"]] <- lapply(methodVersion, getPvalVersion, pout = "padj", count.type = count.type, datanm = datanm)
 	Dat[["pval"]] <- lapply(methodVersion, getPvalVersion, pout = "pval", count.type = count.type, datanm = datanm)
-	Dat 
-	
+	Dat
+
 }
-	
+
 
 resetPar <- function() {
     dev.new()
@@ -1300,13 +1370,13 @@ resetPar <- function() {
 }
 
 roPlot <-
-function(y, ...) 
+function(y, ...)
 UseMethod("roPlot")
 ## plot ROC curve ##
 
 roPlot.default <-
 function(y, indDiff, returnData=FALSE, plot.max.fpr = 0.4, add = FALSE, cex.axis = 2, threshold = 0.05, col = 1, cex.threshold = 3, plot.max.tpr=1, ...)
-{   
+{
     ## plot ROC curve ##
 	#old.par <- par(c("mar", "mgp", "cex.axis"))
 	#par(mar=c(4,5,3,2))
@@ -1317,7 +1387,7 @@ function(y, indDiff, returnData=FALSE, plot.max.fpr = 0.4, add = FALSE, cex.axis
 	if(any(is.na(y)))
 	{
       y[is.na(y)] <- 1
-	}	
+	}
 	y = 1 - y
 	label <- as.factor(rep("nonDE", length(y)))
 	levels(label) <- c("nonDE", "DE")
@@ -1338,23 +1408,23 @@ function(y, indDiff, returnData=FALSE, plot.max.fpr = 0.4, add = FALSE, cex.axis
 }
 roPlot.DGEList <-
 function(y, plot.max.fpr = 0.4, plot.max.tpr=1, pout = "padj", threshold = 0.05, selected.method = NULL, show.legend = TRUE, short.main = FALSE, col = NULL, lty = 1, lwd = 5, box.lwd = 1.5, cex.main = 2.5, cex.axis=2, cex.lab = 2.1, cex = 1.6, cex.threshold = 8)
-{   
+{
 	## plot ROC curve for DGEList ##
 	library(ROCR)
 	main <- y$main
-	if(short.main) 
+	if(short.main)
 	{
 		main <- strsplit(main, "/")[[1]]
 		main <- main[-c(length(main), length(main)-1)]
 		main <- paste0(main, collapse = "/")
 
 	}
-	if(is.null(selected.method)) 
+	if(is.null(selected.method))
 	{
 		method <- y$method
 		methodVersion <- y$methodVersion
 	}
-	else 
+	else
 	{
 		method <- match.arg(selected.method, y$method, several.ok = TRUE)
 		methodVersion <- y$methodVersion[match(method, y$method)]
@@ -1362,30 +1432,30 @@ function(y, plot.max.fpr = 0.4, plot.max.tpr=1, pout = "padj", threshold = 0.05,
 	pout <- match.arg(pout, c("pval", "padj"), several.ok = TRUE)
 	pvalue <- y[[pout]][method]
 	pre.col <- c("black", "blue", "purple", "gray", "tan3", "red", "green", "powderblue", "chartreuse4", "yellow", "steelblue", "salmon", "violetred4", "darkred", "skyblue4")
-	if(is.null(col)) col <- pre.col[seq(method)]		
+	if(is.null(col)) col <- pre.col[seq(method)]
 	roPlot(y = pvalue[[1L]], indDiff = y$indDE, threshold = threshold, plot.max.fpr = plot.max.fpr, plot.max.tpr = plot.max.tpr, col = col[1L], main = main, lty = lty, lwd = lwd, cex.main = cex.main, cex.axis=cex.axis, cex.lab = cex.lab, cex.threshold = cex.threshold)
 	if(is.list(pvalue)) mapply(function(u, v, w) roPlot(y = u, indDiff = y$indDE, threshold = threshold, plot.max.fpr = plot.max.fpr, plot.max.tpr = plot.max.tpr, col = v, lwd = lwd, lty = lty, cex.main = cex.main, cex.axis=cex.axis, cex.lab = cex.lab, cex.threshold = cex.threshold, add = TRUE), u = pvalue[-1L], v = col[-1L])
-	if(show.legend) legend("bottomright", methodVersion, col = col, lty = lty, lwd = lwd, box.lwd = box.lwd, cex = cex)	
-	if(!is.null(threshold)&show.legend) legend("topleft", paste0("P_adj_value=", threshold), col = "black", pch = 4, lty = NA, lwd = lwd, box.lwd = box.lwd, cex = cex, pt.cex = 1.5*cex)	
+	if(show.legend) legend("bottomright", methodVersion, col = col, lty = lty, lwd = lwd, box.lwd = box.lwd, cex = cex)
+	if(!is.null(threshold)&show.legend) legend("topleft", paste0("P_adj_value=", threshold), col = "black", pch = 4, lty = NA, lwd = lwd, box.lwd = box.lwd, cex = cex, pt.cex = 1.5*cex)
 }
 
 
 
 fdPlot <-
-function(y, ...) 
+function(y, ...)
 UseMethod("fdPlot")
 ## plot False discovery number curve ##
 
 fdPlot.default <-
-function(y, indDiff, add=FALSE, xlab="Number of genes selected", 
-ylab="Number of false discoveries", lwd=4, type="l", ... ) 
+function(y, indDiff, add=FALSE, xlab="Number of genes selected",
+ylab="Number of false discoveries", lwd=4, type="l", ... )
 {
-	
-	## plot False discovery number curve ##	
+
+	## plot False discovery number curve ##
 #	old.par <- par(c("mar", "mgp"))
 #	par(mar=c(4,5,3,2))
 #    par(mgp = c(2.6, 1, 0))
-#	on.exit(par(old.par))	
+#	on.exit(par(old.par))
 	x <- 1:length(indDiff)
 	o <- order(y)
 	w <- !o[x] %in% indDiff
@@ -1394,21 +1464,21 @@ ylab="Number of false discoveries", lwd=4, type="l", ... )
 }
 fdPlot.DGEList <-
 function(y, pout = "padj", selected.method = NULL, short.main = FALSE, show.legend = TRUE, col = NULL, lty = 1, lwd = 5, box.lwd = 1.5, cex.main = 2.5, cex.axis=2, cex.lab = 2.1, cex = 1.3, xlim = NULL)
-{   
-	## plot False discovery number curve for DGEList ## 
+{
+	## plot False discovery number curve for DGEList ##
 	main <- y$main
-	if(short.main) 
+	if(short.main)
 	{
 		main <- strsplit(main, "/")[[1]]
 		main <- main[-c(length(main), length(main)-1)]
 		main <- paste0(main, collapse = "/")
 	}
-	if(is.null(selected.method)) 
+	if(is.null(selected.method))
 	{
 		method <- y$method
 		methodVersion <- y$methodVersion
 	}
-	else 
+	else
 	{
 		method <- match.arg(selected.method, y$method, several.ok = TRUE)
 		methodVersion <- y$methodVersion[match(method, y$method)]
@@ -1417,19 +1487,19 @@ function(y, pout = "padj", selected.method = NULL, short.main = FALSE, show.lege
 	pvalue <- y[[pout]][method]
 
 	pre.col <- c("black", "blue", "purple", "gray", "tan3", "red", "green", "powderblue", "chartreuse4", "yellow")
-	if(is.null(col)) col <- pre.col[seq(method)]	
+	if(is.null(col)) col <- pre.col[seq(method)]
 	fdPlot(y = pvalue[[1L]], indDiff = y$indDE,  log="y", col = col[1L], main = main, lty = lty, lwd = lwd, cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab, xlim = xlim)
 	if(is.list(pvalue)) mapply(function(u, v, w) fdPlot(y = u, indDiff = y$indDE, log="y", col = v, lwd = lwd, lty = lty, cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab, add = TRUE), u = pvalue[-1L], v = col[-1L])
 	if(show.legend) legend("bottomright", methodVersion, col = col, lty = lty, lwd = lwd, box.lwd = box.lwd, cex = cex)
 }
 
 getPower <-
-function(y, ...) 
+function(y, ...)
 UseMethod("getPower")
 ## plot Power curve ##
 getPower.default <-
 function(y, indDiff, threshold)
-{ 
+{
 	## plot Power curve ##
 	if(all(is.na(y)))
     NA
@@ -1449,9 +1519,9 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
 		main <- strsplit(main, "/")[[1]]
 		main <- main[-c(length(main), length(main)-1)]
 		main <- paste0(main, collapse = "/")
-		
+
 	}
-    
+
     if(is.null(selected.method))
     {
         method <- y$method
@@ -1465,7 +1535,7 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
 	pout <- match.arg(pout, c("pval", "padj"))
 	pvalue <- y[[pout]][method]
 	indDiff <- y[[index]]
-	
+
 	if(byAveLogCPM)
     {
         threshold <- rep(threshold, cutCPM)
@@ -1480,7 +1550,7 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
         AveLogCPM.list <- lapply(oo, function(x) AveLogCPM[x])
         nm <- lapply(AveLogCPM.list, function(x) round(range(x), 2))
         nm <- unlist(lapply(nm, function(x) paste0("(", paste0(x, collapse = ","), "]")))
-        
+
         power <- list()
         power[["all"]] <- unlist(lapply(pvalue, getPower, indDiff = indDiff, threshold = threshold[1]))
         for( i in 1:length(oo))
@@ -1538,9 +1608,9 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
 		main <- strsplit(main, "/")[[1]]
 		main <- main[-c(length(main), length(main)-1)]
 		main <- paste0(main, collapse = "/")
-		
+
 	}
-    
+
     if(is.null(selected.method))
     {
         method <- y$method
@@ -1554,7 +1624,7 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
 	pout <- match.arg(pout, c("pval", "padj"))
 	pvalue <- y[[pout]][method]
 	indDiff <- y[[index]]
-	
+
 	if(byAveLogCPM)
 	{
         threshold <- rep(threshold, cutCPM)
@@ -1569,7 +1639,7 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
         AveLogCPM.list <- lapply(oo, function(x) AveLogCPM[x])
         nm <- lapply(AveLogCPM.list, function(x) round(range(x), 2))
         nm <- unlist(lapply(nm, function(x) paste0("(", paste0(x, collapse = ","), "]")))
-        
+
         fdr <- list()
         fdr[["all"]] <- unlist(lapply(pvalue, getFDR, indDiff = indDiff, threshold = threshold[1]))
         for( i in 1:length(oo))
@@ -1598,8 +1668,3 @@ function(y, pout = "padj", threshold = 0.05, index = c("indDE", "indDEupOutlier"
     else barPlot(out, output = "fdr", col = col, cex.main = cex.main, cex.lab = cex.lab, cex.axis = cex.axis, cex.sub = cex.sub, ylim = ylim, ...)
 	out
 }
-
-
-
-
-

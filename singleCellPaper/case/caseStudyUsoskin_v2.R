@@ -183,23 +183,18 @@ padjListBatch <- lapply(lrtList, function(x) pvalueAdjustment_kvdb(baseMean=base
 unlist(lapply(padjListBatch,function(x) sum(x$padj<.05,na.rm=TRUE)))
 
 
-
-
 ### not including batch in zero model
 dUsoskin=DGEList(usoskin)
 dUsoskin=calcNormFactors(dUsoskin)
 effLogLib=log(dUsoskin$samples$lib.size*dUsoskin$samples$norm.factors)
 setwd("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR_noBatch/")
-#pdf("~/Dropbox/phdKoen/singleCell/usoskinweightsAllCellTypesNoBatchInZeroModel_v2.pdf")
 weightsUsoskinNoBatch = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib), design=model.matrix(~cellTypeAll+pickingSession), maxit=500, plotW=TRUE, normalization="TMM")
-#dev.off()
-#save(weightsUsoskinNoBatch,file="/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
-load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
+#converged after 440 iterations.
 
 
 ######### PLOT
 ## P(zero) ~ library size
-png("~/usoskin.png", width=10,height=5, units="in", res=330)
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/usoskin.png", width=10,height=5, units="in", res=330)
 par(mfrow=c(1,3))
 expit <- function(x) 1/(1+exp(-x))
 ## not including batch effect
@@ -212,6 +207,7 @@ a <- coef(m)[1]
 b <- coef(m)[2]
 lines(x=sort(logLib),y=expit(a+b*sort(logLib)),lwd=2,col="steelblue")
 legend("bottomleft",c("Cold","RT-1","RT-2"),col=1:3,pch=1,cex=1.5)
+mtext("a" ,at=4, font=2, cex=4/3)
 
 ## including main batch effect
 plot(x=logLib,y=pZero, xlab="Log library size", ylab="Fraction of zero's", main= "", cex.lab=2, cex.main=2, bty="l", pch=1, cex.axis=1.5, col=as.numeric(pickingSession))
@@ -225,13 +221,16 @@ lines(x=sort(logLib[pickingSession=="RT-1"]),y=expit(a+b*sort(logLib[pickingSess
 a <- coef(m2)[1]+coef(m2)[4]
 lines(x=sort(logLib[pickingSession=="RT-2"]),y=expit(a+b*sort(logLib[pickingSession=="RT-2"])),col=3,lwd=2)
 legend("bottomleft",c("Cold","RT-1","RT-2"),col=1:3,lty=1,cex=1.5)
+mtext("b" ,at=4, font=2, cex=4/3)
 
 load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR/weightsConvergedZingeREdgeRUsoskin.rda")
 par(mar=c(5,4.5,4,1))
-hist(w[usoskin==0],xlab="Posterior probability",main="",cex.lab=2,cex.axis=2, ylim=c(0,3e6))
-load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
-hist(weightsUsoskinNoBatch[usoskin==0],add=TRUE,col=rgb(0.1,0.8,0.1,.2))
-legend("topleft",c("picking session + effective lib. size","effective lib. size"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n",cex=1.25)
+hist(w[usoskin==0],xlab="Posterior probability",main="",cex.lab=2,cex.axis=2, ylim=c(0,3.5e6))
+#load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/weightsUsoskinNoBatchLibSizeDispFast300Iter.rda")
+load("/Users/koenvandenberge/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/zingeR_edgeR_noBatch/weightsDESeq2ZeroUsoskin45.RData")
+hist(w[usoskin==0],add=TRUE,col=rgb(0.1,0.8,0.1,.2))
+legend("topleft",c("picking session + eff. lib. size","eff. lib. size"),fill=c(0,rgb(0.1,0.8,0.1,.2)), bty="n",cex=1.25)
+mtext("c" ,at=-.25, font=2, cex=4/3)
 dev.off()
 
 ### edgeR analysis

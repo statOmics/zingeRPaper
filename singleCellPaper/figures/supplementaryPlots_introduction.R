@@ -1,4 +1,4 @@
-source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v5.R")
+source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v6.R")
 source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/method/glmLRTOld.R")
 setwd("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/data/")
 
@@ -150,4 +150,58 @@ for(i in 1:9){
     mtext("Average log CPM",side=1, outer=TRUE, cex=2)    
 }
 dev.off()
+
+### BCV plot based on 10 samples
+
+### BCV over datasets in conquer tool.
+bcvList <- list()
+for(i in 1:length(rdsFiles)){
+    cat(i)
+    if(i %in% c(4,6,9)) next
+    data=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i]))
+    countData <- round(assay(experiments(data)$gene,"count"))    
+    if(i==3){ #Shalek was split up
+	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
+	countData1 <- round(assay(experiments(data)$gene,"count"))
+	countData2 <- round(assay(experiments(data)$gene,"count"))
+	countData = cbind(countData1,countData2)
+	rm(data,data2,countData1,countData2); gc()
+    }
+    if(i==5){ #Trapnell was split up
+	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
+	countData1 <- round(assay(experiments(data)$gene,"count"))
+	countData2 <- round(assay(experiments(data)$gene,"count"))
+	countData = cbind(countData1,countData2)
+	rm(data,data2,countData1,countData2); gc()	
+    }
+    if(i==8){ #Kumar was split up
+	data2=readRDS(paste0("/Users/koenvandenberge/PhD_Data/singleCell/conquer/",rdsFiles[i+1]))
+	countData1 <- round(assay(experiments(data)$gene,"count"))
+	countData2 <- round(assay(experiments(data)$gene,"count"))
+	countData = cbind(countData1,countData2)
+	rm(data,data2,countData1,countData2); gc()	
+    }
+    d=DGEList(countData[,1:10])
+    d=edgeR::calcNormFactors(d)
+    d=estimateDisp(d, prior.df=0)	     
+    bcvList[[i]]=d
+}
+bcvList <- bcvList[!unlist(lapply(bcvList,function(x) is.null(x)))]
+
+png(filename="~/Dropbox/phdKoen/singleCell/figures/supplementary/bcvConquer.png",width=1000,height=800, res=80)
+par(mfrow=c(3,3), mar=c(3,3,1,1), oma=c(3,3,3,3))
+for(i in 1:9){ 
+    if(i%in%c(1,4,7)) par(mar=c(5,5,1,1)) else par(mar=c(5,4,1,1))
+    #plot(x=zeroLibsizeList[[i]][,1], y=zeroLibsizeList[[i]][,2], xlab="", ylab="", bty="l", main=rdsNamesSub[i], pch=16, cex=1/3)
+    plotBCV(bcvList[[i]], xlab="", ylab="", main=rdsNamesSub[i])
+    mtext("Biological coefficient of variation",side=2, outer=TRUE, cex=2)
+    mtext("Average Log CPM",side=1, outer=TRUE, cex=2)    
+}
+dev.off()
+
+
+
+
+
+
 

@@ -30,20 +30,20 @@ library(iCOBRA)
 truthNoZI=data.frame(status=rep(0,nTags), row.names=rownames(dataNoZI))
 truthNoZI[dataNoZI$indDE,"status"]=1
 cobraNoZI <- COBRAData(pval =data.frame(
-					limma_voom=pvalsNoZI$pval$limma_voom, 
+					limma_voom=pvalsNoZI$pval$limma_voom,
 					edgeR=pvalsNoZI$pval$edgeR,
-					zingeR_edgeR=pvalsNoZI$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
+					zingeR_edgeR=pvalsNoZI$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR,
 					DESeq2=pvalsNoZI$pval$DESeq2,
 					DESeq2_poscounts=pvalsNoZI$pval$DESeq2_poscounts,
 					zingeR_DESeq2=pvalsNoZI$pval$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
 					MAST=pvalsNoZI$pval$MAST,
 					NODES=pvalsNoZI$pval$NODES,
 					scde=scdeP[,"pval"],
-					row.names = rownames(dataNoZI)), 
-		   padj = data.frame( 
-				     limma_voom=pvalsNoZI$padj$limma_voom, 
+					row.names = rownames(dataNoZI)),
+		   padj = data.frame(
+				     limma_voom=pvalsNoZI$padj$limma_voom,
 				     edgeR=pvalsNoZI$padj$edgeR,
-				     zingeR_edgeR=pvalsNoZI$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
+				     zingeR_edgeR=pvalsNoZI$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR,
 				     DESeq2=pvalsNoZI$padj$DESeq2,
 				     DESeq2_poscounts=pvalsNoZI$padj$DESeq2_poscounts,
 				     zingeR_DESeq2=pvalsNoZI$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
@@ -86,27 +86,27 @@ scdePZero=scde.pfun(dataZeroes$counts,grp)
 truthZero=data.frame(status=rep(0,nTags), row.names=rownames(dataZeroes))
 truthZero[dataZeroes$indDE,"status"]=1
 cobraZero <- COBRAData(pval =data.frame(
-					limma_voom=pvalsZeroes$pval$limma_voom, 
+					limma_voom=pvalsZeroes$pval$limma_voom,
 					DESeq2=pvalsZeroes$pval$DESeq2,
 					DESeq2_poscounts=pvalsZeroes$pval$DESeq2_poscounts,
 					DESeq2Truth=pvalDESeq2GroundTruth[,"pval"],
 					zingeR_DESeq2=pvalsZeroes$pval$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-					edgeR=pvalsZeroes$pval$edgeR, 
-					zingeR_edgeR=pvalsZeroes$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
-					edgeRTruth = pvalEdgeRGroundTruth[,1], 
+					edgeR=pvalsZeroes$pval$edgeR,
+					zingeR_edgeR=pvalsZeroes$pval$edgeREMLibSizeDispFastOldFFilteredEdgeR,
+					edgeRTruth = pvalEdgeRGroundTruth[,1],
 					MAST=pvalsZeroes$pval$MAST,
 					NODES=pvalsZeroes$pval$NODES,
 					scde=scdePZero[,"pval"],
-					row.names = rownames(dataZeroes)), 
+					row.names = rownames(dataZeroes)),
 		   padj = data.frame(
-				     limma_voom=pvalsZeroes$padj$limma_voom, 
+				     limma_voom=pvalsZeroes$padj$limma_voom,
 				     DESeq2=pvalsZeroes$padj$DESeq2,
 				     DESeq2_poscounts=pvalsZeroes$padj$DESeq2_poscounts,
 				     DESeq2Truth=pvalDESeq2GroundTruth[,"padj"],
 				     zingeR_DESeq2=pvalsZeroes$padj$DESeq2Zero_adjustedDf_posCountsNormZeroWeights,
-				     edgeR=pvalsZeroes$padj$edgeR, 
-				     zingeR_edgeR=pvalsZeroes$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR, 
-				     edgeRTruth = pvalEdgeRGroundTruth[,2], 
+				     edgeR=pvalsZeroes$padj$edgeR,
+				     zingeR_edgeR=pvalsZeroes$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR,
+				     edgeRTruth = pvalEdgeRGroundTruth[,2],
 				     MAST=pvalsZeroes$padj$MAST,
 				     NODES=pvalsZeroes$padj$NODES,
 				     scde=scdePZero[,"padj"],
@@ -121,10 +121,10 @@ plot_fdrtprcurve(cobraplotZero, pointsize=2)
 
 ## two-panel plot
 library(cowplot)
-prow <- plot_grid( plot_fdrtprcurve(cobraplot, pointsize=2) + theme(legend.position="none"),
-           plot_fdrtprcurve(cobraplotZero, pointsize=2) + theme(legend.position="none"),
+prow <- plot_grid( plot_fdrtprcurve(cobraplotZero, pointsize=2) + theme(legend.position="none") + xlab("FDP"),
+           plot_fdrtprcurve(cobraplot, pointsize=2) + xlab("FDP") + theme(legend.position="none"),
            align = 'vh',
-           labels = c("A", "B"),
+           labels = c("a", "b"),
            hjust = -1,
            nrow = 1
            )
@@ -179,7 +179,7 @@ for(j in 1:length(levels(cuts))){
     falses=which(dataNoZI$counts[cuts==levels(cuts)[j]]==0)
     trues=which(zeroId[cuts==levels(cuts)[j],]==0)
     for(i in 1:length(pvalSeq)){
-        excessID <- which(wSub<=pvalSeq[i])	
+        excessID <- which(wSub<=pvalSeq[i])
 	tpr2[[j]][i] <- mean(trues%in%excessID)
     	fpr2[[j]][i] <- mean(falses%in%excessID)
     }
@@ -227,7 +227,7 @@ hlp=edgeREMLibSizeFastOldF.pfun(counts=dataNoZI$counts, group=grp, niter=1e3)
 library(iCOBRA)
 truthNoZI=data.frame(status=rep(0,nTags), row.names=rownames(dataNoZI))
 truthNoZI[dataNoZI$indDE,"status"]=1
-cobraNoZI <- COBRAData(pval =data.frame(edgeRRobust=pvalsNoZI$pval$edgeR_robust, limma_voom=pvalsNoZI$pval$limma_voom, edgeR=pvalsNoZI$pval$edgeR,  edgeREMLibSize=pvalsNoZI$pval$edgeREMLibSize, DESeq2=pvalsNoZI$pval$DESeq2, edgeREMFast=hlp[,1], row.names = rownames(dataNoZI)), 
+cobraNoZI <- COBRAData(pval =data.frame(edgeRRobust=pvalsNoZI$pval$edgeR_robust, limma_voom=pvalsNoZI$pval$limma_voom, edgeR=pvalsNoZI$pval$edgeR,  edgeREMLibSize=pvalsNoZI$pval$edgeREMLibSize, DESeq2=pvalsNoZI$pval$DESeq2, edgeREMFast=hlp[,1], row.names = rownames(dataNoZI)),
 		   padj = data.frame(edgeRRobust=pvalsNoZI$padj$edgeR_robust, limma_voom=pvalsNoZI$padj$limma_voom, edgeR=pvalsNoZI$padj$edgeR, edgeREMLibSize=pvalsNoZI$padj$edgeREMLibSize, DESeq2=pvalsNoZI$padj$DESeq2,edgeREMFast=hlp[,2], row.names = rownames(dataNoZI)),
                    truth = truthNoZI)
 cobraperf <- calculate_performance(cobraNoZI, binary_truth = "status")
@@ -249,7 +249,7 @@ hlp=edgeREMLibSizeFastOldF.pfun(counts=dataZeroes$counts, group=grp, niter=1e3)
 #rnaSeqPerformanceWithZeroes.pdf
 truthZero=data.frame(status=rep(0,nTags), row.names=rownames(dataZeroes))
 truthZero[dataZeroes$indDE,"status"]=1
-cobraZero <- COBRAData(pval =data.frame(edgeRRobust=pvalsZeroes$pval$edgeR_robust, limma_voom=pvalsZeroes$pval$limma_voom, edgeR=pvalsZeroes$pval$edgeR, edgeREMLibSize=pvalsZeroes$pval$edgeREMLibSize, DESeq2=pvalsZeroes$pval$DESeq2, edgeREMFast=hlp[,1], row.names = rownames(dataZeroes)), 
+cobraZero <- COBRAData(pval =data.frame(edgeRRobust=pvalsZeroes$pval$edgeR_robust, limma_voom=pvalsZeroes$pval$limma_voom, edgeR=pvalsZeroes$pval$edgeR, edgeREMLibSize=pvalsZeroes$pval$edgeREMLibSize, DESeq2=pvalsZeroes$pval$DESeq2, edgeREMFast=hlp[,1], row.names = rownames(dataZeroes)),
 		   padj = data.frame(edgeRRobust=pvalsZeroes$padj$edgeR_robust, limma_voom=pvalsZeroes$padj$limma_voom, edgeR=pvalsZeroes$padj$edgeR, edgeREMLibSize=pvalsZeroes$padj$edgeREMLibSize, DESeq2=pvalsZeroes$padj$DESeq2 , edgeREMFast=hlp[,2] , row.names = rownames(dataZeroes)),
                    truth = truthZero)
 cobraperf <- calculate_performance(cobraZero, binary_truth = "status")
@@ -260,6 +260,5 @@ plot_roc(cobraplotZero,xaxisrange=c(0,0.1), yaxisrange=c(0,0.6))
 #performanceRNAseq.pdf
 p1=plot_fdrtprcurve(cobraplot)
 p2=plot_fdrtprcurve(cobraplotZero)
-library(scater) 
+library(scater)
 multiplot(p1,p2)
-

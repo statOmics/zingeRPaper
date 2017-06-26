@@ -281,41 +281,6 @@ runMAST <- function(e){
 }
 
 
-# runLimmaHurdle <- function(e){
-#     ## limma voom pipeline ##
-# 	library(limma)
-# 	counts=exprs(e)
-# 	group=pData(e)$condition
-# 	zeroId=counts==0
-#  	design = model.matrix(~group)
-# 	nf <- edgeR::calcNormFactors(counts)
-# 	y <- voom(counts, design, plot=FALSE, lib.size = colSums(counts)*nf, weights=1-zeroId)
-# 	y$weights=(1-zeroId)*y$weights
-# 	fit <- lmFit(y, design)
-# 	fit <- eBayes(fit)
-# 	tt <- topTable(fit,coef=2,n=nrow(counts), sort.by = "none")
-# 	pval <- tt$P.Value
-# 	padj <- tt$adj.P.Val
-# 	lfc <- tt$logFC
-# 	list(pvals = pval, padj = padj)
-# }
-
-
-
-# runEdgeRHurdle <- function(e) {
-#   design <- model.matrix(~ pData(e)$condition)
-#   dgel <- DGEList(exprs(e))
-#   dgel$weights <- 1-(exprs(e)==0)
-#   dgel <- edgeR::calcNormFactors(dgel)
-#   dgel=estimateDisp(dgel,design)
-#   edger.fit <- glmFit(dgel, design)
-#   edger.lrt <- glmLRT(edger.fit)
-#   pvals <- edger.lrt$table$PValue
-#   padj <- p.adjust(pvals,method="BH")
-#   padj[is.na(padj)] <- 1
-#   list(pvals=pvals, padj=padj)
-# }
-
 runMetagenomeSeq <- function(e){
   require(metagenomeSeq)
   condition = pData(e)$condition
@@ -354,37 +319,3 @@ runDESeq2Zero <- function(e){
     list(pvals=pvalDesZero, padj=padjusted$padj)
 }
 
-# try betaPrior=TRUE and betaPrior=FALSE
-# for both poscounts in dse and zeroWEights
-# poscounts in zeroWEeigts but tmm in dse
-# tmm in zeroweights and dse
-
-
-
- # runDESeq2ZeroTest <- function(e){
- #       ## implement DESeq2 ##
- #     library(DESeq2) ; library(genefilter)
- #     condition=pData(e)$condition
- #     colData=DataFrame(pData(e))
- #         pickingSession = pData(e)[,"Picking sessions"]
- #     dse <- DESeqDataSetFromMatrix(exprs(e), colData, ~ condition)
- #     #dse <- estimateSizeFactors(dse, type="poscounts")
- #     #dse = estimateSizeFactors(dse)
- #      sizeFactors(dse) = rep(1,120)
- #      #d=DGEList(exprs(e))
- #      #d=edgeR::calcNormFactors(d)
- #     #sizeFactors(dse)=1/d$samples$norm.factors
- #     effLogLibSize <- log(colSums(counts(dse))*(1/sizeFactors(dse)))
- #     designZI=model.matrix(~effLogLibSize + pickingSession)
- #     zeroWeights = zeroWeightsLibSizeDispFast(counts(dse), design=model.matrix(~condition), colData=colData, plot=FALSE, maxit=200, initialWeightAt0=TRUE, plotW=FALSE, normalization="DESeq2_pos", designZI=designZI)
- #     dimnames(zeroWeights) = NULL
- #     assays(dse)[["weights"]] = zeroWeights
- #     dse <- estimateDispersions(dse)
- #     dse <- nbinomWaldTest(dse, betaPrior=FALSE)
- #     #dse <- DESeq(dse, betaPrior=TRUE)
- #     res <- results(dse, cooksCutoff=Inf)
- #     baseMean=unname(rowMeans(sweep(counts(dse),2,1/sizeFactors(dse),FUN="*")))
- #     pvalDesZero = 2*(1-pt(abs(res$stat),df=rowSums(zeroWeights)-2))
- #     padjusted = pvalueAdjustment_kvdb(pValue=pvalDesZero, filter=baseMean, alpha=0.05)
- #     list(pvals=pvalDesZero, padj=padjusted$padj)
- # }
