@@ -130,7 +130,8 @@ prow <- plot_grid( plot_fdrtprcurve(cobraplotZero, pointsize=2) + theme(legend.p
            )
 legend_b <- get_legend(plot_fdrtprcurve(cobraplotZero, pointsize=2) + theme(legend.position="bottom"))
 p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
-png("~/Dropbox/phdKoen/singleCell/figures/supplementary/RNASeq_composite.png", width=7,height=8, units="in", res=300)
+#png("~/Dropbox/phdKoen/singleCell/figures/supplementary/RNASeq_composite.png", width=7,height=8, units="in", res=300)
+pdf("~/Dropbox/phdKoen/singleCell/figures/supplementary/RNASeq_composite.pdf", width=7,height=8)
 p
 dev.off()
 
@@ -192,16 +193,50 @@ legend("bottomright",levels(cuts),col=cols,lty=1:length(levels(cuts)))
 dev.off()
 
 
+### investigate Cook's distance cut-off from DESeq2
+library(DESeq2)
+colData <- data.frame(group)
+dse <- DESeqDataSetFromMatrix(countData = dataZeroes$counts, colData = colData, design = ~ group)
+colData(dse)$group <- as.factor(colData(dse)$group)
+#dse <- DESeq(dse, betaPrior=TRUE)
+dse = estimateSizeFactors(dse)
+dse = estimateDispersions(dse)
+dse = nbinomWaldTest(dse, betaPrior=TRUE)
+res <- results(dse)
+
+
+noExcessZeroGenes = apply(zeroId,1,function(row) all(row==1))
+mean(noExcessZeroGenes) #60% have no introduced zeros
+
+plot(density(log(mcols(dse)$maxCooks[noExcessZeroGenes])), main="RNA-seq: log of maximum Cook's for a gene")
+lines(density(log(mcols(dse)$maxCooks[!noExcessZeroGenes])),col=2)
+abline(v=log(qf(p=.99,df1=2,df2=8)))
+legend("topright",c("no excess gene","excess gene"), col=1:2, lty=1)
+
+excessZeroCooks = assays(dse)[["cooks"]][zeroId==0]
+noExcessZeroCooks = assays(dse)[["cooks"]][zeroId==1]
+plot(density(log(noExcessZeroCooks)), "Observation level Cook's distance")
+lines(density(log(excessZeroCooks)),col=2)
+abline(v=log(qf(p=.99,df1=2,df2=8)))
+legend("topleft",c("no excess zero","all counts"), col=1:2, lty=1)
 
 
 
+### scRNA-seq simulations
+group=grp
+library(DESeq2)
+colData <- data.frame(group)
+dse <- DESeqDataSetFromMatrix(countData = dataIslamAllAveLogCPM$counts, colData = colData, design = ~ group)
+colData(dse)$group <- as.factor(colData(dse)$group)
+#dse <- DESeq(dse, betaPrior=TRUE)
+dse = estimateSizeFactors(dse)
+dse = estimateDispersions(dse)
+dse = nbinomWaldTest(dse, betaPrior=TRUE)
+res <- results(dse, cooksCutoff=Inf)
 
-
-
-
-
-
-
+plot(density(log(mcols(dse)$maxCooks)), main="scRNA-seq: log of maximum Cook's for a gene")
+abline(v=log(qf(p=.99,df1=2,df2=78)))
+mean(mcols(dse)$maxCooks > qf(p=.99,df1=2,df2=78))
 
 
 

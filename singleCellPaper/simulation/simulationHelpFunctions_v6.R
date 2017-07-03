@@ -369,23 +369,6 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
           out
 }
 
-DESeq2_poscounts.pfun <-
-function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
-  {
-      ## implement DESeq2 ##
-	  library(DESeq2)
-	  colData <- data.frame(group)
-	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
-	  colData(dse)$group <- as.factor(colData(dse)$group)
-	  #dse <- DESeq(dse, betaPrior=TRUE)
-	  dse <- estimateSizeFactors(dse,type="poscounts")
-	  dse <- estimateDispersions(dse)
-	  dse <- nbinomWaldTest(dse, betaPrior=TRUE)
-	  res <- results(dse)
-	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
-      out
-}
-
 DESeq2_noShrink.pfun <-
 function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
   {
@@ -418,6 +401,57 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 	  res <- results(dse, independentFiltering=FALSE)
 	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
           out
+}
+
+DESeq2_noCook.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse = estimateSizeFactors(dse)
+	  dse = estimateDispersions(dse)
+	  dse = nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse, cooksCutoff=Inf)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+          out
+}
+
+DESeq2_withImputation.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  dse <- DESeq(dse, betaPrior=TRUE)
+	  #dse = estimateSizeFactors(dse)
+	  #dse = estimateDispersions(dse)
+	  #dse = nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse,minReplicatesForReplace=Inf)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+          out
+}
+
+DESeq2_poscounts.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse <- estimateSizeFactors(dse,type="poscounts")
+	  dse <- estimateDispersions(dse)
+	  dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
 }
 
 DESeq2_poscounts_noShrink.pfun <-
@@ -453,6 +487,42 @@ function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
 	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
       out
 }
+
+DESeq2_poscounts_noCook.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  #dse <- DESeq(dse, betaPrior=TRUE)
+	  dse <- estimateSizeFactors(dse,type="poscounts")
+	  dse <- estimateDispersions(dse)
+	  dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse, cooksCutoff=Inf)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
+}
+
+DESeq2_poscounts_withImputation.pfun <-
+function(counts, group, design = NULL, mc.cores = 4, niter=NULL)
+  {
+      ## implement DESeq2 ##
+	  library(DESeq2)
+	  colData <- data.frame(group)
+	  dse <- DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~ group)
+	  colData(dse)$group <- as.factor(colData(dse)$group)
+	  dse <- DESeq(dse, betaPrior=TRUE)
+	  #dse <- estimateSizeFactors(dse,type="poscounts")
+	  #dse <- estimateDispersions(dse)
+	  #dse <- nbinomWaldTest(dse, betaPrior=TRUE)
+	  res <- results(dse, minReplicatesForReplace=FALSE)
+	  out <- cbind(pval = res$pvalue, padj = res$padj, lfc = res$log2FoldChange)
+      out
+}
+
+
 
 
 

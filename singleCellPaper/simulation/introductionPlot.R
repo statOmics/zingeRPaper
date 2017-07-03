@@ -16,7 +16,7 @@ colnames(countData)[stemCellID] = paste("stemCell",1:length(stemCellID),sep="_")
 cellType=vector(length=ncol(countData))
 cellType[fibroID] = "fibro"
 cellType[stemCellID] <- "stemCell"
-islam = as.matrix(countData) 
+islam = as.matrix(countData)
 islam = islam[!rowSums(islam>0)<5,]
 
 
@@ -168,7 +168,7 @@ for(j in 1:length(levels(cuts))){
     falses=which(dataNoZI$counts[cuts==levels(cuts)[j]]==0)
     trues=which(zeroId[cuts==levels(cuts)[j],]==0)
     for(i in 1:length(pvalSeq)){
-        excessID <- which(wSub<=pvalSeq[i])	
+        excessID <- which(wSub<=pvalSeq[i])
 	tpr2[[j]][i] <- mean(trues%in%excessID)
     	fpr2[[j]][i] <- mean(falses%in%excessID)
     }
@@ -317,7 +317,8 @@ library(Hmisc)
 cuts=cut2(wMean,cuts=c(0,0.25,0.75,1))
 
 
-png("~/Dropbox/phdKoen/singleCell/figures/introBCV_v2.png", width=10,height=5, units="in", res=330)
+#png("~/Dropbox/phdKoen/singleCell/figures/introBCV_v2.png", width=10,height=5, units="in", res=330)
+pdf("~/Dropbox/phdKoen/singleCell/figures/introBCV_v2.pdf", width=10,height=5)
 #dev.new(width=10,height=5)
 ##### plot for paper: RNA-seq
 library(scales)
@@ -481,26 +482,26 @@ lines(x=hlp$FDR[hlp$method=="edgeRWeighted"], y=hlp$TPR[hlp$method=="edgeRWeight
 #		     which.min(abs(hlp$CUTOFF[hlp$method=="edgeR"] - 0.1)))
 #points(x=hlp$FDR[cutOffPointsEdgeR], y=hlp$TPR[cutOffPointsEdgeR], pch=16,col=c("white","red")[(hlp$FDR[cutOffPointsEdgeR]<c(0.01,0.05,0.1))+1])
 
-plotBCVIk = function (y, xlab = "Average log CPM", ylab = "Biological coefficient of variation", 
-    pch = 16, cex = 0.2, col.common = "red", col.trend = "blue", 
-    col.tagwise = "black", ...) 
+plotBCVIk = function (y, xlab = "Average log CPM", ylab = "Biological coefficient of variation",
+    pch = 16, cex = 0.2, col.common = "red", col.trend = "blue",
+    col.tagwise = "black", ...)
 {
     ## copied from plotBCV function from edgeR package.
-    if (!is(y, "DGEList")) 
+    if (!is(y, "DGEList"))
         stop("y must be a DGEList.")
     A <- y$AveLogCPM
-    if (is.null(A)) 
+    if (is.null(A))
         A <- aveLogCPM(y$counts, offset = getOffset(y))
     disp <- getDispersion(y)
-    if (is.null(disp)) 
+    if (is.null(disp))
         stop("No dispersions to plot")
-    if (attr(disp, "type") == "common") 
+    if (attr(disp, "type") == "common")
         disp <- rep(disp, length = length(A))
-    plot(A, sqrt(disp), xlab = xlab, ylab = ylab, type = "n", 
+    plot(A, sqrt(disp), xlab = xlab, ylab = ylab, type = "n",
         ...)
     labels <- cols <- lty <- pt <- NULL
     if (!is.null(y$tagwise.dispersion)) {
-        points(A, sqrt(y$tagwise.dispersion), pch = pch, cex = cex, 
+        points(A, sqrt(y$tagwise.dispersion), pch = pch, cex = cex,
             col = col.tagwise)
         labels <- c(labels, "Tagwise")
         cols <- c(cols, col.tagwise)
@@ -508,7 +509,7 @@ plotBCVIk = function (y, xlab = "Average log CPM", ylab = "Biological coefficien
         pt <- c(pt, pch)
     }
     if (!is.null(y$common.dispersion)) {
-        abline(h = sqrt(y$common.dispersion), col = col.common, 
+        abline(h = sqrt(y$common.dispersion), col = col.common,
             lwd = 2)
         labels <- c(labels, "Common")
         cols <- c(cols, col.common)
@@ -517,14 +518,14 @@ plotBCVIk = function (y, xlab = "Average log CPM", ylab = "Biological coefficien
     }
     if (!is.null(y$trended.dispersion)) {
         o <- order(A)
-        lines(A[o], sqrt(y$trended.dispersion)[o], col = col.trend, 
+        lines(A[o], sqrt(y$trended.dispersion)[o], col = col.trend,
             lwd = 2)
         labels <- c(labels, "Trend")
         cols <- c(cols, col.trend)
         lty <- c(lty, 1)
         pt <- c(pt, -1)
     }
-    #legend("topright", legend = labels, lty = lty, pch = pt, 
+    #legend("topright", legend = labels, lty = lty, pch = pt,
      #   pt.cex = cex, lwd = 2, col = cols)
     invisible()
 }
@@ -532,7 +533,8 @@ plotBCVIk = function (y, xlab = "Average log CPM", ylab = "Biological coefficien
 
 
 ### composite plot
-png("~/Dropbox/phdKoen/singleCell/figures/introBCVRNAseq.png",width=10,height=8,units="in",res=100)
+#png("~/Dropbox/phdKoen/singleCell/figures/introBCVRNAseq.png",width=10,height=8,units="in",res=100)
+pdf("~/Dropbox/phdKoen/singleCell/figures/introBCVRNAseq.pdf",width=10,height=8)
 par(mfrow=c(2,2), mar=c(5,5,3,1))
 plotBCVIk(dNoZero, col.common=NULL, col.trend="red", cex.axis=1.5, cex.lab=1.25, bty="l")
 mtext("a",side=3, at=-4.9, cex=4/3,font=2)
@@ -545,11 +547,3 @@ lines(x=hlp$FDR[hlp$method=="edgeRWeighted"], y=hlp$TPR[hlp$method=="edgeRWeight
 legend("bottomright",c("edgeR","weighted edgeR"),bty="n",lty=1,lwd=2,col=c("red","chocolate1"), cex=1.33)
 mtext("d",side=3,at=-0.1,cex=4/3,font=2)
 dev.off()
-
-
-
-
-
-
-
-

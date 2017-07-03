@@ -56,14 +56,14 @@ is.wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
 }
 zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, initialWeightAt0=TRUE, maxit=100, plot=FALSE, plotW=FALSE, designZI=NULL, llTol=1e-4, normalization="TMM"){
     require(edgeR) ; require(DESeq2)
-    if(plot | plotW) par(mfrow=c(1,plot+plotW))    
+    if(plot | plotW) par(mfrow=c(1,plot+plotW))
     counts <- DGEList(counts)
     #counts <- edgeR::calcNormFactors(counts)
     if(normalization=="TMM"){
     	counts = edgeR::calcNormFactors(counts)
     } else if(normalization=="DESeq2_default"){
     	dse = DESeqDataSetFromMatrix(counts$counts, colData=data.frame(cellType=cellTypeAll, pickingSession=pickingSession), design=designFormula)
-    	 dse = DESeq2::estimateSizeFactors(dse)    	 
+    	 dse = DESeq2::estimateSizeFactors(dse)
     	 counts$samples$norm.factors = 1/dse$sizeFactor
     } else if(normalization=="DESeq2_poscounts"){
 		dse = DESeqDataSetFromMatrix(counts$counts, colData=data.frame(cellType=cellTypeAll, pickingSession=pickingSession), design=designFormula)
@@ -76,7 +76,7 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
     w <- matrix(1,nrow=nrow(counts),ncol=ncol(counts), dimnames=list(c(1:nrow(counts)), NULL))
       ## starting values based on P(zero) in the library
     for(k in 1:ncol(w)) w[counts$counts[,k]==0,k] <- 1-mean(counts$counts[,k]==0)
-    
+
     llOld <- matrix(-1e4,nrow=nrow(counts),ncol=ncol(counts))
     likCOld <- matrix(0,nrow=nrow(counts),ncol=ncol(counts))
     converged=FALSE
@@ -84,9 +84,9 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 
     for(i in 1:maxit){
 	j=j+1
-    zeroId <- counts$counts==0	
+    zeroId <- counts$counts==0
 	counts$weights <- w
-	
+
 	### M-step counts
 	#only estimate dispersions every 5 iterations
 	#if(i==1 | is.wholenumber(i/10)){
@@ -95,18 +95,18 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 	#counts <- estimateGLMTagwiseDisp(counts, design, prior.df=0, min.row.sum=1)
 	counts = estimateDisp(counts, design, prior.df=0, min.row.sum=1)
 	}
-	if(plot) plotBCV(counts)	
+	if(plot) plotBCV(counts)
 	fit <- glmFit(counts, design)
 	likC <- dnbinom(counts$counts, mu=fit$fitted.values, size=1/counts$tagwise.dispersion)
-	
+
 	### M-step mixture parameter: model zero probability
 	successes <- colSums(1-w) #P(zero)
 	failures <- colSums(w) #1-P(zero)
 	if(is.null(designZI)){
 	zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")} else{
 	zeroFit <- glm(cbind(successes,failures) ~-1+designZI, family="binomial")}
-	pi0Hat <- predict(zeroFit,type="response") 
-	
+	pi0Hat <- predict(zeroFit,type="response")
+
 	## E-step: Given estimated parameters, calculate expected value of weights
 	pi0HatMat <- expandAsMatrix(pi0Hat,dim=dim(counts),byrow=TRUE)
 	w <- 1-pi0HatMat*zeroId/(pi0HatMat*zeroId+(1-pi0HatMat)*likC*zeroId+1e-15)
@@ -119,7 +119,7 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 	if(mean(abs(delta) < llTol)>.999){ #if 99.9% has converged
 	    if(j==1 & mean(abs(delta) < llTol)>.999){ #final convergence?
 	    	cat(paste0("converged. \n")) ; return(w)}
-	    j=0 
+	    j=0
 	    converged=TRUE} else {converged=FALSE}
 	cat(paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol),"\n"))
 
@@ -129,7 +129,7 @@ zeroWeightsLibSizeDispFastUsoskin <- function(counts, design, designFormula, ini
 		if(is.wholenumber(i/10)){
 			dev.off()
 			pdf(paste0("weightsHistogramDESeq2Zero",(i/10)+1,".pdf"))
-			} 
+			}
 		hist(w[zeroId],main=paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol)))
 	}
 
@@ -259,6 +259,11 @@ for(i in 1:ncol(L)) lrtListNoWeights[[i]] <- glmLRTOld(fitNoWeights,contrast=L[,
 padjListNoWeights=lapply(lrtListNoWeights, function(x) p.adjust(x$table$PValue,"BH"))
 deGenesNoWeights=unlist(lapply(padjListNoWeights,function(x) sum(x<.05)))
 
+
+system.time(estimateDisp(dNoWeights, design))
+system.time(DESeq(dse,minReplicatesForReplace=Inf))
+
+
 ### DESeq2 analysis
 library(DESeq2)
 colData <- data.frame(cellType=cellTypeAll,pickingSession=pickingSession)
@@ -336,11 +341,11 @@ ngeneson <- apply(exprs(sca),1,function(x)mean(x>0))
 CD <- cData(sca)
 CD$ngeneson <- ngeneson
 CD$cngeneson <- CD$ngeneson-mean(ngeneson)
-cData(sca) <- CD  
-## differential expression 
+cData(sca) <- CD
+## differential expression
 fit <- zlm.SingleCellAssay(~cngeneson+cellType+pickingSession,sca=sca,method="bayesglm",ebayes=TRUE)
 #how many genes have all-zero counts in at least one condition?
-mean(apply(fit@coefC[,c(1,3:12)],1,function(row) any(is.na(row)))) 
+mean(apply(fit@coefC[,c(1,3:12)],1,function(row) any(is.na(row))))
 L <- matrix(0,nrow=ncol(fit@coefC),ncol=11)
 rownames(L) <- colnames(fit@coefC)
 colnames(L) <- c("NF1","NF2","NF3","NF4","NF5","NP1","NP2","NP3","PEP1","PEP2","TH")
@@ -377,7 +382,7 @@ setwd("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/")
 weightsUsoskinBatch = zeroWeightsLibSizeDispFastUsoskin(counts=usoskin, designZI=model.matrix(~effLogLib+pickingSession), design=model.matrix(~cellTypeAll+pickingSession), designFormula=~cellType+pickingSession , maxit=500, plotW=TRUE, normalization="DESeq2_poscounts")
 #save(weightsUsoskinBatch, file="~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin500iter.RData")
 ## analysis
-load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin500iter.RData") 
+load("~/Dropbox/PhD/Research/zeroInflation/singleCell/usoskin/DESeq2Zero_v2/weightsZingeRDESeq2Usoskin500iter.RData")
 hist(weightsUsoskinBatch[usoskin==0])
 library(DESeq2) ; library(genefilter)
 dse = DESeqDataSetFromMatrix(usoskin, colData=data.frame(cellType=cellTypeAll, pickingSession=pickingSession), design=~cellType+pickingSession)
@@ -439,7 +444,7 @@ design=model.matrix(~cellTypeAll+pickingSession)
 maxit=10
 plot=TRUE
 plotW=TRUE
-    if(plot | plotW) par(mfrow=c(1,plot+plotW))    
+    if(plot | plotW) par(mfrow=c(1,plot+plotW))
     zeroId <- counts$counts==0
     #w <- weightsUsoskinBatch10Iterations
     wFinal <- matrix(NA,nrow=nrow(counts),ncol=ncol(counts))
@@ -449,25 +454,25 @@ plotW=TRUE
     likCOld <- matrix(0,nrow=nrow(counts),ncol=ncol(counts))
     maxit=10
     for(i in 1:maxit){
-        zeroId <- counts$counts==0	
+        zeroId <- counts$counts==0
 	counts$weights <- w
-	
+
 	### M-step counts
 	counts <- estimateGLMCommonDisp(counts, design, interval=c(0,10))
 	counts <- estimateGLMTagwiseDisp(counts, design, prior.df=0, min.row.sum=1)
 	if(plot) plotBCV(counts)
 	fit <- glmFit(counts, design)
-	if(i>1) likCOld <- likC[!converged,]	
+	if(i>1) likCOld <- likC[!converged,]
 	likC <- dnbinom(counts$counts, mu=fit$fitted.values, size=1/counts$tagwise.dispersion)
-	
+
 	### M-step mixture parameter: model zero probability
 	successes <- colSums(1-w) #P(zero)
 	failures <- colSums(w) #1-P(zero)
 	if(is.null(designZI)){
 	zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")} else{
 	zeroFit <- glm(cbind(successes,failures) ~-1+designZI, family="binomial")}
-	pi0Hat <- predict(zeroFit,type="response") 
-	
+	pi0Hat <- predict(zeroFit,type="response")
+
 	## E-step: Given estimated parameters, calculate expected value of weights
 	pi0HatMat <- expandAsMatrix(pi0Hat,dim=dim(counts),byrow=TRUE)
 	wOld <- w
@@ -504,6 +509,3 @@ plotW=TRUE
 pdf("~/Dropbox/phdKoen/singleCell/usoskinweights100IterationsBatchInMainNotInZeroModelAllCellTypes.pdf")
 weightsUsoskinNoBatch50Iterations = zeroWeightsLibSizeFast(counts=usoskin, design=model.matrix(~cellTypeAll+pickingSession), maxit=100, plot=TRUE, plotW=TRUE)
 dev.off()
-
-
-

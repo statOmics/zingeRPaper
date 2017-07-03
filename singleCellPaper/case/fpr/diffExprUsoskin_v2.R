@@ -133,7 +133,8 @@ cellTypeAll=factor(pData(eset)[,"Level 3"],exclude=TRUE)
 source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/simulation/simulationHelpFunctions_v6.R") ## for weight functions
 source("~/Dropbox/phdKoen/singleCell/githubPaper/singleCellPaper/method/glmLRTOld.R")
 
-png("~/Dropbox/phdKoen/singleCell/figures/caseUsoskin_composite.png", width=12,height=11, units="in", res=350)
+#png("~/Dropbox/phdKoen/singleCell/figures/caseUsoskin_composite.png", width=12,height=11, units="in", res=350)
+pdf("~/Dropbox/phdKoen/singleCell/figures/caseUsoskin_composite.pdf", width=12,height=11)
 layout(matrix(c(1,2,3,3),nrow=2,ncol=2,byrow=TRUE))
 ## P(zero) ~ library size
 expit <- function(x) 1/(1+exp(-x))

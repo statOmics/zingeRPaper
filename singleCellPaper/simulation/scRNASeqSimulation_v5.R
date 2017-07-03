@@ -78,7 +78,7 @@ legend("topright",c("real","simulated"),pch=19,col=1:2, bty="n", cex=.6)
 dev.off()
 
 ### performance characteristics
-selectedMethods <- c("edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voomZeroFiltered",  "DESeq2", "DESeq2_poscounts", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "edgeR_robust", "edgeR", "edgeROldF", "limma_voom", "limma_voomFiltered", "metagenomeSeq","edgeRFiltered", "NODES")
+selectedMethods <- c("edgeREMLibSizeDispFastOldFFilteredEdgeR", "MAST", "limma_voomZeroFiltered",  "DESeq2", "DESeq2_poscounts", "DESeq2Zero_adjustedDf_posCountsNormZeroWeights", "edgeR", "edgeROldF", "limma_voom", "limma_voomFiltered", "metagenomeSeq","edgeRFiltered", "NODES")
 
 group=grp
 pvalsIslam <- pval(dataIslamAllAveLogCPM, method=selectedMethods, mc.cores=2, niter=200)
@@ -108,6 +108,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 					 metagenomeSeq=pvalsIslam$pval$metagenomeSeq,
 					 scde=scdePIslam[,"pval"],
 					 NODES=pvalsIslam$pval$NODES,
+					 DESeq2_noCook=res[,"pval"],
 					 row.names = rownames(dataIslamAllAveLogCPM)),
 		   padj = data.frame(
 		   			 zingeR_edgeR=pvalsIslam$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR,
@@ -121,10 +122,11 @@ cobraIslam <- COBRAData(pval =data.frame(
 					metagenomeSeq=pvalsIslam$padj$metagenomeSeq,
 					scde=scdePIslam[,"padj"],
 					NODES=pvalsIslam$padj$NODES,
+					DESeq2_noCook=res[,"padj"],
 				     	row.names = rownames(dataIslamAllAveLogCPM)),
                    truth = truthIslam)
 cobraperf <- calculate_performance(cobraIslam, binary_truth = "status")
-colors=c(limma_voom="blue", zingeR_limma_voom="steelblue", edgeR="red", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", metagenomeSeq="green", scde="grey", NODES="black", zingeR_DESeq2_wald="steelblue", MAST2="salmon", MAST2_count="dodgerblue", DESeq2_poscounts_DESeq="gold", DESeq2_separate="aquamarine3", MASTold="gold")
+colors=c(limma_voom="blue", zingeR_limma_voom="steelblue", edgeR="red", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", metagenomeSeq="green", scde="grey", NODES="black", zingeR_DESeq2_wald="steelblue", MAST2="salmon", MAST2_count="dodgerblue", DESeq2_noCook="gold", DESeq2_separate="aquamarine3", MASTold="gold")
 colsCobra=colors[match(sort(names(cobraperf@overlap)[1:(ncol(cobraperf@overlap)-1)]),names(colors))]
 cobraplot <- prepare_data_for_plot(cobraperf, colorscheme=colsCobra)
 #save(cobraplot,file="~/Dropbox/PhD/Research/zeroInflation/singleCell/cobraplotIslam.rda")
@@ -184,9 +186,13 @@ plot_fdrtprcurve(cobraplot, pointsize=2)
 selectedMethodsDESeq2 <- c("DESeq2",
 		     "DESeq2_noFiltering", #no independent filtering step
 		     "DESeq2_noShrink", #no shrinkage to mean zero prior of coefs
+				 "DESeq2_noCook", #no Cook's distance cooksCutoff
+				 "DESeq2_withImputation",
 				 "DESeq2_poscounts",
 				 "DESeq2_poscounts_noShrink",
-				 "DESeq2_poscounts_noFiltering"
+				 "DESeq2_poscounts_noFiltering",
+				 "DESeq2_poscounts_noCook",
+				 "DESeq2_poscounts_withImputation"
 				 )
 
 pvalsIslamDESeq2 <- pval(dataIslamAllAveLogCPM, method=selectedMethodsDESeq2, mc.cores=2, niter=200)
@@ -199,7 +205,9 @@ cobraIslamDESeq2 <- COBRAData(pval =data.frame(
 					 DESeq2=pvalsIslamDESeq2$pval$DESeq2,
 					 #DESeq2_poscounts=pvalsIslamDESeq2$pval$DESeq2_poscounts,
 					 DESeq2_noFiltering=pvalsIslamDESeq2$pval$DESeq2_noFiltering,
+					 DESeq2_noCook=pvalsIslamDESeq2$pval$DESeq2_noCook,
 					 DESeq2_noShrink=pvalsIslamDESeq2$pval$DESeq2_noShrink,
+					 DESeq2_withImputation=pvalsIslamDESeq2$pval$DESeq2_withImputation,
 					 #DESeq2_poscounts_noShrink=pvalsIslamDESeq2$pval$DESeq2_poscounts_noShrink,
 					 #DESeq2_poscounts_noFiltering=pvalsIslamDESeq2$pval$DESeq2_poscounts_noFiltering,
 					 row.names = rownames(dataIslamAllAveLogCPM)),
@@ -207,17 +215,55 @@ cobraIslamDESeq2 <- COBRAData(pval =data.frame(
 				     DESeq2=pvalsIslamDESeq2$padj$DESeq2,
 				    # DESeq2_poscounts=pvalsIslamDESeq2$padj$DESeq2_poscounts,
 						 DESeq2_noFiltering=pvalsIslamDESeq2$padj$DESeq2_noFiltering,
+						 DESeq2_noCook=pvalsIslamDESeq2$padj$DESeq2_noCook,
 						 DESeq2_noShrink=pvalsIslamDESeq2$padj$DESeq2_noShrink,
+						 DESeq2_withImputation=pvalsIslamDESeq2$padj$DESeq2_withImputation,
 						 #DESeq2_poscounts_noShrink=pvalsIslamDESeq2$padj$DESeq2_poscounts_noShrink,
 						 #DESeq2_poscounts_noFiltering=pvalsIslamDESeq2$padj$DESeq2_poscounts_noFiltering,
 				     	row.names = rownames(dataIslamAllAveLogCPM)),
 truth = truthIslam)
 cobraperf <- calculate_performance(cobraIslamDESeq2, binary_truth = "status")
 cobraplot <- prepare_data_for_plot(cobraperf)
-plot_fdrtprcurve(cobraplot)
+plot_fdrtprcurve(cobraplot, pointsize=2, xaxisrange=c(0,0.3), yaxisrange=c(0,0.5))
 
+cobraIslamDESeq2poscounts <- COBRAData(pval =data.frame(
+					 #DESeq2=pvalsIslamDESeq2$pval$DESeq2,
+					 DESeq2_poscounts=pvalsIslamDESeq2$pval$DESeq2_poscounts,
+					 #DESeq2_noFiltering=pvalsIslamDESeq2$pval$DESeq2_noFiltering,
+					 #DESeq2_noCook=pvalsIslamDESeq2$pval$DESeq2_noCook,
+					 #DESeq2_noShrink=pvalsIslamDESeq2$pval$DESeq2_noShrink,
+					 DESeq2_poscounts_noShrink=pvalsIslamDESeq2$pval$DESeq2_poscounts_noShrink,
+					 DESeq2_poscounts_noFiltering=pvalsIslamDESeq2$pval$DESeq2_poscounts_noFiltering,
+					 DESeq2_poscounts_noCook=pvalsIslamDESeq2$pval$DESeq2_poscounts_noCook,
+					 DESeq2_poscounts_withImputation=pvalsIslamDESeq2$pval$DESeq2_poscounts_withImputation,
+					 row.names = rownames(dataIslamAllAveLogCPM)),
+		   padj = data.frame(
+				     #DESeq2=pvalsIslamDESeq2$padj$DESeq2,
+				     DESeq2_poscounts=pvalsIslamDESeq2$padj$DESeq2_poscounts,
+						 #DESeq2_noFiltering=pvalsIslamDESeq2$padj$DESeq2_noFiltering,
+						 #DESeq2_noCook=pvalsIslamDESeq2$padj$DESeq2_noCook,
+						 #DESeq2_noShrink=pvalsIslamDESeq2$padj$DESeq2_noShrink,
+						 DESeq2_poscounts_noShrink=pvalsIslamDESeq2$padj$DESeq2_poscounts_noShrink,
+						 DESeq2_poscounts_noFiltering=pvalsIslamDESeq2$padj$DESeq2_poscounts_noFiltering,
+						 DESeq2_poscounts_noCook=pvalsIslamDESeq2$padj$DESeq2_poscounts_noCook,
+						 DESeq2_poscounts_withImputation=pvalsIslamDESeq2$padj$DESeq2_poscounts_withImputation,
+				     	row.names = rownames(dataIslamAllAveLogCPM)),
+truth = truthIslam)
+cobraperf <- calculate_performance(cobraIslamDESeq2poscounts, binary_truth = "status")
+cobraplotDESeq2poscounts <- prepare_data_for_plot(cobraperf)
+plot_fdrtprcurve(cobraplotDESeq2poscounts, pointsize=2, xaxisrange=c(0,0.3), yaxisrange=c(0,0.5))
 
+library(cowplot)
+deseq2plot =plot_fdrtprcurve(cobraplot, pointsize=2, xaxisrange=c(0,0.3), yaxisrange=c(0,0.5), title="Median-of-ratios normalization")
+deseq2posplot =plot_fdrtprcurve(cobraplotDESeq2poscounts, pointsize=2, xaxisrange=c(0,0.3), yaxisrange=c(0,0.5), title="Positive counts normalization")
 
+pow = plot_grid(deseq2plot + theme(legend.position="none")   + xlab("FDP"), deseq2posplot + theme(legend.position="none") + xlab("FDP"), nrow=1, align='vh', hjust=-1, labels=c("a","b"))
+legend_a <- get_legend(deseq2plot + theme(legend.position="bottom"))
+legend_b <- get_legend(deseq2posplot + theme(legend.position="bottom"))
+
+png("~/Dropbox/phdKoen/singleCell/figures/supplementary/DESeq2Variants_islam.png", width=8,height=8, units="in", res=300)
+plot_grid(pow, legend_a, rel_heights=c(1,.2), ncol=1, nrow=2)
+dev.off()
 
 ##################################################################
 ########################### TRAPNELL #############################
@@ -424,7 +470,8 @@ prow <- plot_grid( islamPlot + theme(legend.position="none") + xlab("FDP"),
            )
 legend_b <- get_legend(islamPlot + theme(legend.position="bottom"))
 p <- plot_grid( prow, legend_b, ncol = 1, rel_heights = c(1, .2))
-png("~/Dropbox/phdKoen/singleCell/figures/scSimulation_composite_cutoff.png", width=7,height=8, units="in", res=300)
+#png("~/Dropbox/phdKoen/singleCell/figures/scSimulation_composite_cutoff.png", width=7,height=8, units="in", res=300)
+pdf("~/Dropbox/phdKoen/singleCell/figures/scSimulation_composite_cutoff.pdf", width=7,height=8)
 p
 dev.off()
 

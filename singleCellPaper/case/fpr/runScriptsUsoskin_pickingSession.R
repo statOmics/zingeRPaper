@@ -44,7 +44,7 @@ runVoom <- function(e) {
   fit <- lmFit(v,design)
   fit <- eBayes(fit)
   tt <- topTable(fit,coef="conditionB",n=nrow(dgel),sort.by="none")
-  pvals <- tt$P.Value 
+  pvals <- tt$P.Value
   padj <- p.adjust(pvals,method="BH")
   padj[is.na(padj)] <- 1
   list(pvals=pvals, padj=padj, beta=tt$logFC)
@@ -105,7 +105,7 @@ dse = DESeqDataSetFromMatrix(counts, colData=colData, design=designFormula)
     w <- matrix(1,nrow=nrow(counts),ncol=ncol(counts), dimnames=list(c(1:nrow(counts)), NULL))
       ## starting values based on P(zero) in the library
     for(k in 1:ncol(w)) w[counts$counts[,k]==0,k] <- 1-mean(counts$counts[,k]==0)
-    
+
     llOld <- matrix(-1e4,nrow=nrow(counts),ncol=ncol(counts))
     likCOld <- matrix(0,nrow=nrow(counts),ncol=ncol(counts))
     converged=FALSE
@@ -113,9 +113,9 @@ dse = DESeqDataSetFromMatrix(counts, colData=colData, design=designFormula)
 
     for(i in 1:maxit){
   j=j+1
-        zeroId <- counts$counts==0  
+        zeroId <- counts$counts==0
   counts$weights <- w
-  
+
   ### M-step counts
   #only estimate dispersions every 5 iterations
   #if(i==1 | is.wholenumber(i/10)){
@@ -124,18 +124,18 @@ dse = DESeqDataSetFromMatrix(counts, colData=colData, design=designFormula)
   #counts <- estimateGLMTagwiseDisp(counts, design, prior.df=0, min.row.sum=1)
   counts = estimateDisp(counts, design, prior.df=0, min.row.sum=1)
   }
-  if(plot) plotBCV(counts)  
+  if(plot) plotBCV(counts)
   fit <- glmFit(counts, design)
   likC <- dnbinom(counts$counts, mu=fit$fitted.values, size=1/counts$tagwise.dispersion)
-  
+
   ### M-step mixture parameter: model zero probability
   successes <- colSums(1-w) #P(zero)
   failures <- colSums(w) #1-P(zero)
   if(is.null(designZI)){
   zeroFit <- glm(cbind(successes,failures) ~ logEffLibSize, family="binomial")} else{
   zeroFit <- glm(cbind(successes,failures) ~-1+designZI, family="binomial")}
-  pi0Hat <- predict(zeroFit,type="response") 
-  
+  pi0Hat <- predict(zeroFit,type="response")
+
   ## E-step: Given estimated parameters, calculate expected value of weights
   pi0HatMat <- expandAsMatrix(pi0Hat,dim=dim(counts),byrow=TRUE)
   w <- 1-pi0HatMat*zeroId/(pi0HatMat*zeroId+(1-pi0HatMat)*likC*zeroId+1e-15)
@@ -148,10 +148,10 @@ dse = DESeqDataSetFromMatrix(counts, colData=colData, design=designFormula)
   if(mean(abs(delta) < llTol)>.999){ #if 99.9% has converged
       if(j==1 & mean(abs(delta) < llTol)>.999){ #final convergence?
         cat(paste0("converged. \n")) ; return(w)}
-      j=0 
+      j=0
       converged=TRUE} else {converged=FALSE}
   cat(paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol),"\n"))
-  if(plotW) hist(w[zeroId],main=paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol)))  
+  if(plotW) hist(w[zeroId],main=paste0("iteration: ",i,". mean conv.: ",mean(abs(delta) < llTol)))
     }
     return(w)
 }
@@ -172,7 +172,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
     # do filtering using genefilter
     stopifnot(length(theta) > 1)
     filtPadj <- filtered_p(filter=filter, test=pValue,
-                           theta=theta, method=pAdjustMethod) 
+                           theta=theta, method=pAdjustMethod)
     numRej  <- colSums(filtPadj < alpha, na.rm = TRUE)
     # prevent over-aggressive filtering when all genes are null,
     # by requiring the max number of rejections is above a fitted curve.
@@ -181,7 +181,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
     lo.fit <- lowess(numRej ~ theta, f=1/5)
     if (max(numRej) <= 10) {
       j <- 1
-    } else { 
+    } else {
       residual <- if (all(numRej==0)) {
         0
       } else {
@@ -191,7 +191,7 @@ pvalueAdjustment_kvdb <- function(baseMean, filter, pValue,
       j <- if (any(numRej > thresh)) {
         which(numRej > thresh)[1]
       } else {
-        1  
+        1
       }
     }
     padj <- filtPadj[, j, drop=TRUE]
@@ -211,7 +211,7 @@ runEdgeREMLibSize=function(e){
   library(edgeR) ; library(genefilter)
   condition = pData(e)$condition
   pickingSession = pData(e)$pickingSession
-  design <- model.matrix(~ condition + pickingSession)	
+  design <- model.matrix(~ condition + pickingSession)
 	d <- DGEList(exprs(e))
 	d <- edgeR::calcNormFactors(d)
 	#not adding a design matrix models the zeroes with the library size automatically
@@ -226,7 +226,7 @@ runEdgeREMLibSize=function(e){
 	edger.fit$df.residual <- rowSums(edger.fit$weights)-ncol(design)
   	edger.lrt <- glmLRTOld(edger.fit,coef=2,test="F")
   	pvals <- edger.lrt$table$PValue
-	baseMean = unname(rowMeans(sweep(d$counts,2,d$samples$norm.factors,FUN="*")))	
+	baseMean = unname(rowMeans(sweep(d$counts,2,d$samples$norm.factors,FUN="*")))
 	hlp <- pvalueAdjustment_kvdb(baseMean=baseMean, pValue=pvals)
   	padj <- hlp$padj
 	#padj <- p.adjust(pval,method="BH")
@@ -242,12 +242,6 @@ runScde <- function(e){
     require(scde)
     # calculate models
     o.ifm <- scde.error.models(counts = exprs(e), groups = pData(e)$condition, n.cores = 1, threshold.segmentation = TRUE, save.crossfit.plots = FALSE, save.model.plots = FALSE, verbose = 0)
-
-    # filter out cells that don't show positive correlation with
-    # the expected expression magnitudes (very poor fits)
-    #valid.cells <- o.ifm$corr.a > 0
-    #table(valid.cells)
-    #o.ifm <- o.ifm[valid.cells, ]
 
     # estimate gene expression prior
     o.prior <- scde.expression.prior(models = o.ifm, counts = exprs(e), length.out = 400, show.plot = FALSE)
@@ -269,7 +263,7 @@ runMAST <- function(e){
     CD$ngeneson <- ngeneson
     CD$cngeneson <- CD$ngeneson-mean(ngeneson)
     cData(sca) <- CD
-     ## differential expression 
+     ## differential expression
     fit <- zlm.SingleCellAssay(~cngeneson+group+pickingSession, sca=sca, method="bayesglm", ebayes=TRUE)
     L=matrix(0,nrow=ncol(coef(fit,"D")))
     rownames(L)=colnames(coef(fit,"D"))
@@ -285,7 +279,7 @@ runMetagenomeSeq <- function(e){
   require(metagenomeSeq)
   condition = pData(e)$condition
   pickingSession = pData(e)$pickingSession
-  design <- model.matrix(~ condition + pickingSession)    
+  design <- model.matrix(~ condition + pickingSession)
   pheno <- AnnotatedDataFrame(data.frame(group=condition, pickingSession=pickingSession))
   rownames(pheno) <- colnames(exprs(e))
   p <- cumNormStatFast(exprs(e))
@@ -318,4 +312,3 @@ runDESeq2Zero <- function(e){
     padjusted = pvalueAdjustment_kvdb(pValue=pvalDesZero, filter=baseMean, alpha=0.05)
     list(pvals=pvalDesZero, padj=padjusted$padj)
 }
-
