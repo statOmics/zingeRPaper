@@ -108,7 +108,6 @@ cobraIslam <- COBRAData(pval =data.frame(
 					 metagenomeSeq=pvalsIslam$pval$metagenomeSeq,
 					 scde=scdePIslam[,"pval"],
 					 NODES=pvalsIslam$pval$NODES,
-					 DESeq2_noCook=res[,"pval"],
 					 row.names = rownames(dataIslamAllAveLogCPM)),
 		   padj = data.frame(
 		   			 zingeR_edgeR=pvalsIslam$padj$edgeREMLibSizeDispFastOldFFilteredEdgeR,
@@ -122,8 +121,7 @@ cobraIslam <- COBRAData(pval =data.frame(
 					metagenomeSeq=pvalsIslam$padj$metagenomeSeq,
 					scde=scdePIslam[,"padj"],
 					NODES=pvalsIslam$padj$NODES,
-					DESeq2_noCook=res[,"padj"],
-				     	row.names = rownames(dataIslamAllAveLogCPM)),
+				    row.names = rownames(dataIslamAllAveLogCPM)),
                    truth = truthIslam)
 cobraperf <- calculate_performance(cobraIslam, binary_truth = "status")
 colors=c(limma_voom="blue", zingeR_limma_voom="steelblue", edgeR="red", zingeR_edgeR="salmon", edgeRFiltered="pink", DESeq2="brown", DESeq2_poscounts="navajowhite2", zingeR_DESeq2="darkseagreen", DESeq2Zero_phyloNorm="forestgreen", MAST="darkturquoise", metagenomeSeq="green", scde="grey", NODES="black", zingeR_DESeq2_wald="steelblue", MAST2="salmon", MAST2_count="dodgerblue", DESeq2_noCook="gold", DESeq2_separate="aquamarine3", MASTold="gold")
@@ -269,21 +267,25 @@ dev.off()
 ########################### TRAPNELL #############################
 ##################################################################
 trapnellAssay72 <- readRDS("/Users/koenvandenberge/PhD_Data/singleCell/conquer/GSE52529-GPL11154.rds")
+trapnellAssay72 = updateObject(trapnellAssay72)
 trapnellAssay <- readRDS("/Users/koenvandenberge/PhD_Data/singleCell/conquer/GSE52529-GPL16791.rds")
-# get the 48h timepoint from large assay set
-trapnellAssay48 <- trapnellAssay[,pData(trapnellAssay)[,"characteristics_ch1.1"] == "hour post serum-switch: 48"]
-rm(trapnellAssay)
-#remove wells containing debris
-trapnellAssay72 <- trapnellAssay72[,!pData(trapnellAssay72)[,"characteristics_ch1.2"]=="debris: TRUE"]
-trapnellAssay48 <- trapnellAssay48[,!pData(trapnellAssay48)[,"characteristics_ch1.2"]=="debris: TRUE"]
-#remove wells that did not contain one cell
-trapnellAssay72 <- trapnellAssay72[,!pData(trapnellAssay72)[,"characteristics_ch1.4"]!="cells in well: 1"]
-trapnellAssay48 <- trapnellAssay48[,!pData(trapnellAssay48)[,"characteristics_ch1.4"]!="cells in well: 1"]
-
-countsTrapnell48 <- round(assay(experiments(trapnellAssay48)$gene,"count"))
+trapnellAssay = updateObject(trapnellAssay)
+trapnellAssay48 <- trapnellAssay[,colData(trapnellAssay)[,"characteristics_ch1.1"] == "hour post serum-switch: 48"]
 countsTrapnell72 <- round(assay(experiments(trapnellAssay72)$gene,"count"))
+id48=colData(trapnellAssay)[,"characteristics_ch1.1"] == "hour post serum-switch: 48"
+countsTrapnell48 <- round(assay(experiments(trapnellAssay)$gene[,id48],"count"))
+#wells containing debris
+debris72 = colData(trapnellAssay72)[,"characteristics_ch1.2"]=="debris: TRUE"
+debris48 = colData(trapnellAssay48)[,"characteristics_ch1.2"]=="debris: TRUE"
+#wells that did not contain one cell
+one72 = colData(trapnellAssay72)[,"characteristics_ch1.4"]!="cells in well: 1"
+one48 = colData(trapnellAssay48)[,"characteristics_ch1.4"]!="cells in well: 1"
+# remove
+countsTrapnell72 = countsTrapnell72[,(!debris72 & !one72)]
+countsTrapnell48 = countsTrapnell48[,(!debris48 & !one48)]
 countsTrapnell <- cbind(countsTrapnell48,countsTrapnell72)
 countsTrapnell <- countsTrapnell[rowSums(countsTrapnell>0)>9,] #expression in at least 10 out of 149 samples. Remains 24,576 genes and 149 samples.
+rm(trapnellAssay)
 timePoint=factor(c(rep(48,85),rep(72,64)))
 
 ## weight distribution on real data

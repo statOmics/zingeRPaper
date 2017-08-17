@@ -260,8 +260,11 @@ padjListNoWeights=lapply(lrtListNoWeights, function(x) p.adjust(x$table$PValue,"
 deGenesNoWeights=unlist(lapply(padjListNoWeights,function(x) sum(x<.05)))
 
 
-system.time(estimateDisp(dNoWeights, design))
-system.time(DESeq(dse,minReplicatesForReplace=Inf))
+#### how many genes from the edgeR analysis are also found in the zingeR_edgeR analysis?
+deGenesZinger = lapply(lrtList, function(x) which(p.adjust(x$table$PValue,"fdr")<=0.05))
+deGenesEdger = lapply(lrtListNoWeights, function(x) which(p.adjust(x$table$PValue,"fdr")<=0.05))
+genesInCommon = vector()
+for(i in 1:length(deGenesZinger)) genesInCommon[i] = mean(deGenesEdger[[i]] %in% deGenesZinger[[i]])
 
 
 ### DESeq2 analysis
