@@ -18,9 +18,9 @@ getParamsZTNB <- function(counts, offset, design=NULL) {
     if(class(fit)[1]=="try-error") return(c(dispersion=NA, lambda=NA))
     #lambda=exp(mean(fit$mu.coefficients)) #geometric mean
     lambda=mean(countsModel/libSizeModel)
-    #dispersion=exp(fit$sigma.coefficients)
-    theta=exp(fit$sigma.coefficients)
-    dispersion=1/theta
+    dispersion=exp(fit$sigma.coefficients)
+    #theta=exp(fit$sigma.coefficients)
+    #dispersion=1/theta
     return(c(dispersion=dispersion,lambda=lambda))
 }
 
